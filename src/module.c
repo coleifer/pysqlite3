@@ -52,7 +52,7 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
 
     static char *kwlist[] = {
         "database", "timeout", "detect_types", "isolation_level",
-        "check_same_thread", "factory", "cached_statements", "uri",
+        "check_same_thread", "factory", "cached_statements", "uri", "flags",
         NULL
     };
     char* database;
@@ -61,15 +61,17 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
     PyObject* factory = NULL;
     int check_same_thread = 1;
     int cached_statements;
+    int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
     int uri = 0;
     double timeout = 5.0;
 
     PyObject* result;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|diOiOip", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|diOiOipi", kwlist,
                                      &database, &timeout, &detect_types,
                                      &isolation_level, &check_same_thread,
-                                     &factory, &cached_statements, &uri))
+                                     &factory, &cached_statements, &uri,
+                                     &flags))
     {
         return NULL;
     }
@@ -85,7 +87,7 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
 
 PyDoc_STRVAR(module_connect_doc,
 "connect(database[, timeout, detect_types, isolation_level,\n\
-        check_same_thread, factory, cached_statements, uri])\n\
+        check_same_thread, factory, cached_statements, uri, flags])\n\
 \n\
 Opens a connection to the SQLite database file *database*. You can use\n\
 \":memory:\" to open a database connection to a database that resides in\n\

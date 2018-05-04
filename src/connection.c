@@ -71,7 +71,7 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
 {
     static char *kwlist[] = {
         "database", "timeout", "detect_types", "isolation_level",
-        "check_same_thread", "factory", "cached_statements", "uri",
+        "check_same_thread", "factory", "cached_statements", "uri", "flags",
         NULL
     };
 
@@ -81,14 +81,16 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     PyObject* factory = NULL;
     int check_same_thread = 1;
     int cached_statements = 100;
+    int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
     int uri = 0;
     double timeout = 5.0;
     int rc;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|diOiOip", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|diOiOipi", kwlist,
                                      &database, &timeout, &detect_types,
                                      &isolation_level, &check_same_thread,
-                                     &factory, &cached_statements, &uri))
+                                     &factory, &cached_statements, &uri,
+                                     &flags))
     {
         return -1;
     }
@@ -110,15 +112,14 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
 #ifdef SQLITE_OPEN_URI
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_open_v2(database, &self->db,
-                         SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE |
-                         (uri ? SQLITE_OPEN_URI : 0), NULL);
+                         flags | (uri ? SQLITE_OPEN_URI : 0), NULL);
 #else
     if (uri) {
         PyErr_SetString(pysqlite_NotSupportedError, "URIs not supported");
         return -1;
     }
     Py_BEGIN_ALLOW_THREADS
-    rc = sqlite3_open(database, &self->db);
+    rc = sqlite3_open_v2(database, &self->db, flags, NULL);
 #endif
     Py_END_ALLOW_THREADS
 
@@ -375,7 +376,7 @@ PyObject* _pysqlite_connection_begin(pysqlite_Connection* self)
     sqlite3_stmt* statement;
 
     Py_BEGIN_ALLOW_THREADS
-    rc = sqlite3_prepare(self->db, self->begin_statement, -1, &statement, &tail);
+    rc = sqlite3_prepare_v2(self->db, self->begin_statement, -1, &statement, &tail);
     Py_END_ALLOW_THREADS
 
     if (rc != SQLITE_OK) {
@@ -418,7 +419,7 @@ PyObject* pysqlite_connection_commit(pysqlite_Connection* self, PyObject* args)
     if (!sqlite3_get_autocommit(self->db)) {
 
         Py_BEGIN_ALLOW_THREADS
-        rc = sqlite3_prepare(self->db, "COMMIT", -1, &statement, &tail);
+        rc = sqlite3_prepare_v2(self->db, "COMMIT", -1, &statement, &tail);
         Py_END_ALLOW_THREADS
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->db, NULL);
@@ -462,7 +463,7 @@ PyObject* pysqlite_connection_rollback(pysqlite_Connection* self, PyObject* args
         pysqlite_do_all_statements(self, ACTION_RESET, 1);
 
         Py_BEGIN_ALLOW_THREADS
-        rc = sqlite3_prepare(self->db, "ROLLBACK", -1, &statement, &tail);
+        rc = sqlite3_prepare_v2(self->db, "ROLLBACK", -1, &statement, &tail);
         Py_END_ALLOW_THREADS
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->db, NULL);
