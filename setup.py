@@ -22,7 +22,7 @@ sources = [os.path.join('src', source)
 
 # define packages
 packages = [PACKAGE_NAME]
-EXTENSION_MODULE_NAME = "._sqlite"
+EXTENSION_MODULE_NAME = "._sqlite3"
 
 # Work around clang raising hard error for unused arguments
 if sys.platform == "darwin":
