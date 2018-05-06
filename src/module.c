@@ -59,7 +59,7 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
 
     static char *kwlist[] = {
         "database", "timeout", "detect_types", "isolation_level",
-        "check_same_thread", "factory", "cached_statements", "uri",
+        "check_same_thread", "factory", "cached_statements", "uri", "flags",
         NULL
     };
     PyObject* database;
@@ -68,6 +68,7 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
     PyObject* factory = NULL;
     int check_same_thread = 1;
     int cached_statements;
+    int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
     int uri = 0;
     double timeout = 5.0;
 
@@ -76,7 +77,8 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|diOiOip", kwlist,
                                      &database, &timeout, &detect_types,
                                      &isolation_level, &check_same_thread,
-                                     &factory, &cached_statements, &uri))
+                                     &factory, &cached_statements, &uri,
+                                     &flags))
     {
         return NULL;
     }
@@ -92,7 +94,7 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
 
 PyDoc_STRVAR(module_connect_doc,
 "connect(database[, timeout, detect_types, isolation_level,\n\
-        check_same_thread, factory, cached_statements, uri])\n\
+        check_same_thread, factory, cached_statements, uri, flags])\n\
 \n\
 Opens a connection to the SQLite database file *database*. You can use\n\
 \":memory:\" to open a database connection to a database that resides in\n\
@@ -296,6 +298,15 @@ static const IntConstantPair _int_constants[] = {
     {"SQLITE_DROP_TRIGGER", SQLITE_DROP_TRIGGER},
     {"SQLITE_DROP_VIEW", SQLITE_DROP_VIEW},
     {"SQLITE_INSERT", SQLITE_INSERT},
+    {"SQLITE_OPEN_CREATE", SQLITE_OPEN_CREATE},
+    {"SQLITE_OPEN_FULLMUTEX", SQLITE_OPEN_FULLMUTEX},
+    {"SQLITE_OPEN_MEMORY", SQLITE_OPEN_MEMORY},
+    {"SQLITE_OPEN_NOMUTEX", SQLITE_OPEN_NOMUTEX},
+    {"SQLITE_OPEN_PRIVATECACHE", SQLITE_OPEN_PRIVATECACHE},
+    {"SQLITE_OPEN_READONLY", SQLITE_OPEN_READONLY},
+    {"SQLITE_OPEN_SHAREDCACHE", SQLITE_OPEN_SHAREDCACHE},
+    {"SQLITE_OPEN_READWRITE", SQLITE_OPEN_READWRITE},
+    {"SQLITE_OPEN_URI", SQLITE_OPEN_URI},
     {"SQLITE_PRAGMA", SQLITE_PRAGMA},
     {"SQLITE_READ", SQLITE_READ},
     {"SQLITE_SELECT", SQLITE_SELECT},

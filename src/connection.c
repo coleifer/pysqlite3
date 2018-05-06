@@ -75,7 +75,7 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
 {
     static char *kwlist[] = {
         "database", "timeout", "detect_types", "isolation_level",
-        "check_same_thread", "factory", "cached_statements", "uri",
+        "check_same_thread", "factory", "cached_statements", "uri", "flags",
         NULL
     };
 
@@ -86,14 +86,16 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     PyObject* factory = NULL;
     int check_same_thread = 1;
     int cached_statements = 100;
+    int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
     int uri = 0;
     double timeout = 5.0;
     int rc;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&|diOiOip", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&|diOiOipi", kwlist,
                                      PyUnicode_FSConverter, &database_obj, &timeout, &detect_types,
                                      &isolation_level, &check_same_thread,
-                                     &factory, &cached_statements, &uri))
+                                     &factory, &cached_statements, &uri,
+                                     &flags))
     {
         return -1;
     }
@@ -117,17 +119,14 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
 #ifdef SQLITE_OPEN_URI
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_open_v2(database, &self->db,
-                         SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE |
-                         (uri ? SQLITE_OPEN_URI : 0), NULL);
+                         flags | (uri ? SQLITE_OPEN_URI : 0), NULL);
 #else
     if (uri) {
         PyErr_SetString(pysqlite_NotSupportedError, "URIs not supported");
         return -1;
     }
     Py_BEGIN_ALLOW_THREADS
-    /* No need to use sqlite3_open_v2 as sqlite3_open(filename, db) is the
-       same as sqlite3_open_v2(filename, db, SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE, NULL). */
-    rc = sqlite3_open(database, &self->db);
+    rc = sqlite3_open_v2(database, &self->db, flags, NULL);
 #endif
     Py_END_ALLOW_THREADS
 
