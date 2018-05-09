@@ -76,6 +76,7 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     static char *kwlist[] = {
         "database", "timeout", "detect_types", "isolation_level",
         "check_same_thread", "factory", "cached_statements", "uri", "flags",
+        "vfs",
         NULL
     };
 
@@ -87,15 +88,16 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     int check_same_thread = 1;
     int cached_statements = 100;
     int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+    char *vfs = NULL;
     int uri = 0;
     double timeout = 5.0;
     int rc;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&|diOiOipi", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&|diOiOipiz", kwlist,
                                      PyUnicode_FSConverter, &database_obj, &timeout, &detect_types,
                                      &isolation_level, &check_same_thread,
                                      &factory, &cached_statements, &uri,
-                                     &flags))
+                                     &flags, &vfs))
     {
         return -1;
     }
@@ -119,14 +121,14 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
 #ifdef SQLITE_OPEN_URI
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_open_v2(database, &self->db,
-                         flags | (uri ? SQLITE_OPEN_URI : 0), NULL);
+                         flags | (uri ? SQLITE_OPEN_URI : 0), vfs);
 #else
     if (uri) {
         PyErr_SetString(pysqlite_NotSupportedError, "URIs not supported");
         return -1;
     }
     Py_BEGIN_ALLOW_THREADS
-    rc = sqlite3_open_v2(database, &self->db, flags, NULL);
+    rc = sqlite3_open_v2(database, &self->db, flags, vfs);
 #endif
     Py_END_ALLOW_THREADS
 

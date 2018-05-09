@@ -60,6 +60,7 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
     static char *kwlist[] = {
         "database", "timeout", "detect_types", "isolation_level",
         "check_same_thread", "factory", "cached_statements", "uri", "flags",
+        "vfs",
         NULL
     };
     PyObject* database;
@@ -69,16 +70,17 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
     int check_same_thread = 1;
     int cached_statements;
     int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+    char *vfs;
     int uri = 0;
     double timeout = 5.0;
 
     PyObject* result;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|diOiOip", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|diOiOipiz", kwlist,
                                      &database, &timeout, &detect_types,
                                      &isolation_level, &check_same_thread,
                                      &factory, &cached_statements, &uri,
-                                     &flags))
+                                     &flags, &vfs))
     {
         return NULL;
     }
