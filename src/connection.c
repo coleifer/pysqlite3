@@ -45,6 +45,10 @@
 #define HAVE_BACKUP_API
 #endif
 
+#if SQLITE_VERSION_NUMBER >= 3025000
+#define HAVE_WINDOW_FUNCTION
+#endif
+
 _Py_IDENTIFIER(cursor);
 
 static const char * const begin_statements[] = {
@@ -747,6 +751,109 @@ error:
     PyGILState_Release(threadstate);
 }
 
+#ifdef HAVE_WINDOW_FUNCTION
+
+void _pysqlite_value_callback(sqlite3_context* context)
+{
+    PyObject* function_result;
+    PyObject** aggregate_instance;
+    _Py_IDENTIFIER(value);
+    int ok;
+    PyObject *exception, *val, *tb;
+    int restore;
+
+    PyGILState_STATE threadstate;
+
+    threadstate = PyGILState_Ensure();
+
+    aggregate_instance = (PyObject**)sqlite3_aggregate_context(context, sizeof(PyObject*));
+    if (!*aggregate_instance) {
+        /* this branch is executed if there was an exception in the aggregate's
+         * __init__ */
+
+        goto error;
+    }
+
+    /* Keep the exception (if any) of the last call to step() */
+    PyErr_Fetch(&exception, &val, &tb);
+    restore = 1;
+
+    function_result = _PyObject_CallMethodId(*aggregate_instance, &PyId_value, NULL);
+
+    ok = 0;
+    if (function_result) {
+        ok = _pysqlite_set_result(context, function_result) == 0;
+        Py_DECREF(function_result);
+    }
+    if (!ok) {
+        if (_enable_callback_tracebacks) {
+            PyErr_Print();
+        } else {
+            PyErr_Clear();
+        }
+        _sqlite3_result_error(context, "user-defined window function's 'value' method raised error", -1);
+    }
+
+    if (restore) {
+        /* Restore the exception (if any) of the last call to step(),
+           but clear also the current exception if finalize() failed */
+        PyErr_Restore(exception, val, tb);
+    }
+
+error:
+    PyGILState_Release(threadstate);
+}
+
+static void _pysqlite_inverse_callback(sqlite3_context *context, int argc, sqlite3_value** params)
+{
+    PyObject* args;
+    PyObject* function_result = NULL;
+    PyObject** aggregate_instance;
+    PyObject* invmethod = NULL;
+
+    PyGILState_STATE threadstate;
+
+    threadstate = PyGILState_Ensure();
+
+    aggregate_instance = (PyObject**)sqlite3_aggregate_context(context, sizeof(PyObject*));
+    if (!*aggregate_instance) {
+        /* this branch is executed if there was an exception in the aggregate's
+         * __init__ */
+
+        goto error;
+    }
+
+    invmethod = PyObject_GetAttrString(*aggregate_instance, "inverse");
+    if (!invmethod) {
+        goto error;
+    }
+
+    args = _pysqlite_build_py_params(context, argc, params);
+    if (!args) {
+        goto error;
+    }
+
+    function_result = PyObject_CallObject(invmethod, args);
+    Py_DECREF(args);
+
+    if (!function_result) {
+        if (_enable_callback_tracebacks) {
+            PyErr_Print();
+        } else {
+            PyErr_Clear();
+        }
+        _sqlite3_result_error(context, "user-defined aggregate's 'inverse' method raised error", -1);
+    }
+
+error:
+    Py_XDECREF(invmethod);
+    Py_XDECREF(function_result);
+
+    PyGILState_Release(threadstate);
+}
+
+#endif
+
 static void _pysqlite_drop_unused_statement_references(pysqlite_Connection* self)
 {
     PyObject* new_list;
@@ -872,6 +979,50 @@ PyObject* pysqlite_connection_create_aggregate(pysqlite_Connection* self, PyObje
         Py_RETURN_NONE;
     }
 }
+
+#ifdef HAVE_WINDOW_FUNCTION
+PyObject* pysqlite_connection_create_window_function(pysqlite_Connection* self, PyObject* args, PyObject* kwargs)
+{
+    PyObject* window_function_class;
+
+    int n_arg;
+    char* name;
+    static char *kwlist[] = { "name", "n_arg", "window_function_class", NULL };
+    int rc;
+
+    if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
+        return NULL;
+    }
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "siO:create_window_function",
+                                      kwlist, &name, &n_arg, &window_function_class)) {
+        return NULL;
+    }
+
+    rc = sqlite3_create_window_function(
+        self->db,
+        name,
+        n_arg,
+        SQLITE_UTF8,
+        (void*)window_function_class,
+        &_pysqlite_step_callback,
+        &_pysqlite_final_callback,
+        &_pysqlite_value_callback,
+        &_pysqlite_inverse_callback,
+        NULL);
+
+    if (rc != SQLITE_OK) {
+        /* Workaround for SQLite bug: no error code or string is available here */
+        PyErr_SetString(pysqlite_OperationalError, "Error creating window function");
+        return NULL;
+    } else {
+        if (PyDict_SetItem(self->function_pinboard, window_function_class, Py_None) == -1)
+            return NULL;
+
+        Py_RETURN_NONE;
+    }
+}
+#endif
 
 static int _authorizer_callback(void* user_arg, int action, const char* arg1, const char* arg2 , const char* dbname, const char* access_attempt_source)
 {
@@ -1747,6 +1898,10 @@ static PyMethodDef connection_methods[] = {
         PyDoc_STR("Creates a new function. Non-standard.")},
     {"create_aggregate", (PyCFunction)pysqlite_connection_create_aggregate, METH_VARARGS|METH_KEYWORDS,
         PyDoc_STR("Creates a new aggregate. Non-standard.")},
+    #ifdef HAVE_WINDOW_FUNCTION
+    {"create_window_function", (PyCFunction)pysqlite_connection_create_window_function, METH_VARARGS|METH_KEYWORDS,
+        PyDoc_STR("Creates a new window function. Non-standard.")},
+    #endif
     {"set_authorizer", (PyCFunction)pysqlite_connection_set_authorizer, METH_VARARGS|METH_KEYWORDS,
         PyDoc_STR("Sets authorizer callback. Non-standard.")},
     #ifdef HAVE_LOAD_EXTENSION
