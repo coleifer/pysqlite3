@@ -768,13 +768,10 @@ void _pysqlite_value_callback(sqlite3_context* context)
 
     aggregate_instance = (PyObject**)sqlite3_aggregate_context(context, sizeof(PyObject*));
     if (!*aggregate_instance) {
-        /* this branch is executed if there was an exception in the aggregate's
-         * __init__ */
-
         goto error;
     }
 
-    /* Keep the exception (if any) of the last call to step() */
+    /* Keep the exception (if any) of the last call to step() or inverse() */
     PyErr_Fetch(&exception, &val, &tb);
     restore = 1;
 
@@ -817,9 +814,6 @@ static void _pysqlite_inverse_callback(sqlite3_context *context, int argc, sqlit
 
     aggregate_instance = (PyObject**)sqlite3_aggregate_context(context, sizeof(PyObject*));
     if (!*aggregate_instance) {
-        /* this branch is executed if there was an exception in the aggregate's
-         * __init__ */
-
         goto error;
     }
 
