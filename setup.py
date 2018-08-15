@@ -122,7 +122,7 @@ def get_setup_args():
         author_email="coleifer@gmail.com",
         license="zlib/libpng",
         platforms="ALL",
-        url="https://github.com/rigglemania/pysqlcipher3",
+        url="https://github.com/coleifer/pysqlite3",
         package_dir={PACKAGE_NAME: "lib"},
         packages=packages,
         ext_modules=[Extension(
