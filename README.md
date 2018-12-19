@@ -39,10 +39,10 @@ $ ./configure
 $ make sqlite3.c
 
 # Copy the sqlite3 amalgamation files into the root of the pysqlite3 checkout
-# and run build_static:
+# and run build_static + build:
 $ cp sqlite/sqlite3.[ch] pysqlite3/
 $ cd pysqlite3
-$ python setup.py build_static
+$ python setup.py build_static build
 ```
 
 You now have a statically-linked, completely self-contained `pysqlite3`.
