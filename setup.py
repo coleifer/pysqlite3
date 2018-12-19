@@ -48,14 +48,14 @@ class SystemLibSqliteBuilder(build_ext):
 class AmalgationLibSqliteBuilder(build_ext):
     description = "Builds a C extension using a sqlite3 amalgamation"
 
-    amalgamation_root = "amalgamation"
+    amalgamation_root = "."
     amalgamation_header = os.path.join(amalgamation_root, 'sqlite3.h')
     amalgamation_source = os.path.join(amalgamation_root, 'sqlite3.c')
 
-    amalgamation_message = \
-        """Sqlite amalgamation not found. Please download or build the
-        amalgamation and make sure the following files are present in the
-        amalgamation folder: sqlite3.h, sqlite3.c"""
+    amalgamation_message = ('Sqlite amalgamation not found. Please download '
+                            'or build the amalgamation and make sure the '
+                            'following files are present in the pysqlite3 '
+                            'folder: sqlite3.h, sqlite3.c')
 
     def check_amalgamation(self):
         if not os.path.exists(self.amalgamation_root):
@@ -90,8 +90,6 @@ class AmalgationLibSqliteBuilder(build_ext):
         for feature in features:
             ext.define_macros.append(('SQLITE_%s' % feature, '1'))
 
-        # Additional options
-
         # Always use memory for temp store.
         ext.define_macros.append(("SQLITE_TEMP_STORE", "3"))
 
@@ -99,7 +97,7 @@ class AmalgationLibSqliteBuilder(build_ext):
         ext.sources.append(os.path.join(self.amalgamation_root, "sqlite3.c"))
 
         if sys.platform != "win32":
-            # Include math library.
+            # Include math library, required for fts5.
             ext.extra_link_args.append("-lm")
 
         build_ext.build_extension(self, ext)
@@ -142,7 +140,7 @@ def get_setup_args():
             "Topic :: Database :: Database Engines/Servers",
             "Topic :: Software Development :: Libraries :: Python Modules"],
         cmdclass={
-            "build_amalgamation": AmalgationLibSqliteBuilder,
+            "build_static": AmalgationLibSqliteBuilder,
             "build_ext": SystemLibSqliteBuilder
         }
     )
