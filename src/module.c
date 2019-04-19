@@ -46,8 +46,8 @@ PyObject *pysqlite_IntegrityError = NULL;
 PyObject *pysqlite_DataError = NULL;
 PyObject *pysqlite_NotSupportedError = NULL;
 
-PyObject* converters = NULL;
-int _enable_callback_tracebacks = 0;
+PyObject* _pysqlite_converters = NULL;
+int _pysqlite_enable_callback_tracebacks = 0;
 int pysqlite_BaseTypeAdapted = 0;
 
 static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
@@ -59,8 +59,7 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
 
     static char *kwlist[] = {
         "database", "timeout", "detect_types", "isolation_level",
-        "check_same_thread", "factory", "cached_statements", "uri", "flags",
-        "vfs",
+        "check_same_thread", "factory", "cached_statements", "uri",
         NULL
     };
     PyObject* database;
@@ -69,18 +68,15 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
     PyObject* factory = NULL;
     int check_same_thread = 1;
     int cached_statements;
-    int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-    char *vfs;
     int uri = 0;
     double timeout = 5.0;
 
     PyObject* result;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|diOiOipiz", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|diOiOip", kwlist,
                                      &database, &timeout, &detect_types,
                                      &isolation_level, &check_same_thread,
-                                     &factory, &cached_statements, &uri,
-                                     &flags, &vfs))
+                                     &factory, &cached_statements, &uri))
     {
         return NULL;
     }
@@ -96,7 +92,7 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
 
 PyDoc_STRVAR(module_connect_doc,
 "connect(database[, timeout, detect_types, isolation_level,\n\
-        check_same_thread, factory, cached_statements, uri, flags])\n\
+        check_same_thread, factory, cached_statements, uri])\n\
 \n\
 Opens a connection to the SQLite database file *database*. You can use\n\
 \":memory:\" to open a database connection to a database that resides in\n\
@@ -208,7 +204,7 @@ static PyObject* module_register_converter(PyObject* self, PyObject* args)
         goto error;
     }
 
-    if (PyDict_SetItem(converters, name, callable) != 0) {
+    if (PyDict_SetItem(_pysqlite_converters, name, callable) != 0) {
         goto error;
     }
 
@@ -226,7 +222,7 @@ Registers a converter with pysqlite. Non-standard.");
 
 static PyObject* enable_callback_tracebacks(PyObject* self, PyObject* args)
 {
-    if (!PyArg_ParseTuple(args, "i", &_enable_callback_tracebacks)) {
+    if (!PyArg_ParseTuple(args, "i", &_pysqlite_enable_callback_tracebacks)) {
         return NULL;
     }
 
@@ -240,21 +236,21 @@ Enable or disable callback functions throwing errors to stderr.");
 
 static void converters_init(PyObject* dict)
 {
-    converters = PyDict_New();
-    if (!converters) {
+    _pysqlite_converters = PyDict_New();
+    if (!_pysqlite_converters) {
         return;
     }
 
-    PyDict_SetItemString(dict, "converters", converters);
+    PyDict_SetItemString(dict, "converters", _pysqlite_converters);
 }
 
 static PyMethodDef module_methods[] = {
-    {"connect",  (PyCFunction)module_connect,
+    {"connect",  (PyCFunction)(void(*)(void))module_connect,
      METH_VARARGS | METH_KEYWORDS, module_connect_doc},
-    {"complete_statement",  (PyCFunction)module_complete,
+    {"complete_statement",  (PyCFunction)(void(*)(void))module_complete,
      METH_VARARGS | METH_KEYWORDS, module_complete_doc},
 #ifdef HAVE_SHARED_CACHE
-    {"enable_shared_cache",  (PyCFunction)module_enable_shared_cache,
+    {"enable_shared_cache",  (PyCFunction)(void(*)(void))module_enable_shared_cache,
      METH_VARARGS | METH_KEYWORDS, module_enable_shared_cache_doc},
 #endif
     {"register_adapter", (PyCFunction)module_register_adapter,
@@ -300,15 +296,6 @@ static const IntConstantPair _int_constants[] = {
     {"SQLITE_DROP_TRIGGER", SQLITE_DROP_TRIGGER},
     {"SQLITE_DROP_VIEW", SQLITE_DROP_VIEW},
     {"SQLITE_INSERT", SQLITE_INSERT},
-    {"SQLITE_OPEN_CREATE", SQLITE_OPEN_CREATE},
-    {"SQLITE_OPEN_FULLMUTEX", SQLITE_OPEN_FULLMUTEX},
-    {"SQLITE_OPEN_MEMORY", SQLITE_OPEN_MEMORY},
-    {"SQLITE_OPEN_NOMUTEX", SQLITE_OPEN_NOMUTEX},
-    {"SQLITE_OPEN_PRIVATECACHE", SQLITE_OPEN_PRIVATECACHE},
-    {"SQLITE_OPEN_READONLY", SQLITE_OPEN_READONLY},
-    {"SQLITE_OPEN_SHAREDCACHE", SQLITE_OPEN_SHAREDCACHE},
-    {"SQLITE_OPEN_READWRITE", SQLITE_OPEN_READWRITE},
-    {"SQLITE_OPEN_URI", SQLITE_OPEN_URI},
     {"SQLITE_PRAGMA", SQLITE_PRAGMA},
     {"SQLITE_READ", SQLITE_READ},
     {"SQLITE_SELECT", SQLITE_SELECT},

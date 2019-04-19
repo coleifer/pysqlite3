@@ -119,7 +119,7 @@ PyObject* pysqlite_cache_get(pysqlite_Cache* self, PyObject* args)
     pysqlite_Node* ptr;
     PyObject* data;
 
-    node = (pysqlite_Node*)PyDict_GetItem(self->mapping, key);
+    node = (pysqlite_Node*)PyDict_GetItemWithError(self->mapping, key);
     if (node) {
         /* an entry for this key already exists in the cache */
 
@@ -157,12 +157,16 @@ PyObject* pysqlite_cache_get(pysqlite_Cache* self, PyObject* args)
             }
             ptr->prev = node;
         }
-    } else {
+    }
+    else if (PyErr_Occurred()) {
+        return NULL;
+    }
+    else {
         /* There is no entry for this key in the cache, yet. We'll insert a new
          * entry in the cache, and make space if necessary by throwing the
          * least used item out of the cache. */
 
-        if (PyDict_Size(self->mapping) == self->size) {
+        if (PyDict_GET_SIZE(self->mapping) == self->size) {
             if (self->last) {
                 node = self->last;
 
