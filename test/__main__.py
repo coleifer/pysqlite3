@@ -8,7 +8,7 @@ from test.factory import suite as factory_suite
 from test.hooks import suite as hooks_suite
 from test.regression import suite as regression_suite
 from test.transactions import suite as transactions_suite
-from test.types import suite as types_suite
+from test.ttypes import suite as types_suite
 from test.userfunctions import suite as userfunctions_suite
 
 
