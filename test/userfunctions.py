@@ -407,6 +407,40 @@ class AggregateTests(unittest.TestCase):
         val = cur.fetchone()[0]
         self.assertEqual(val, 60)
 
+
+@unittest.skipIf(sqlite.sqlite_version_info < (3, 25, 0),
+                 'requires sqlite with window-function support')
+class WindowFunctionTests(unittest.TestCase):
+    def setUp(self):
+        self.conn = sqlite.connect(":memory:")
+        self.conn.execute('create table sample (id integer primary key, '
+                          'counter integer, value real);')
+        self.conn.execute('insert into sample (counter, value) values '
+                          '(?,?),(?,?),(?,?),(?,?),(?,?)', (
+                              1, 10.,
+                              1, 20.,
+                              2, 1.,
+                              2, 2.,
+                              3, 100.))
+
+    def test_user_defined_window_function(self):
+        class MySum(object):
+            def __init__(self): self._value = 0
+            def step(self, value): self._value += value
+            def inverse(self, value): self._value -= value
+            def value(self): return self._value
+            def finalize(self): return self._value
+
+        self.conn.create_window_function('mysum', -1, MySum)
+
+        q = ('select counter, value, mysum(value) over (partition by counter) '
+             'from sample order by id')
+        self.assertEqual(self.conn.execute(q).fetchall(), [
+            (1, 10., 30.), (1, 20., 30.),
+            (2, 1., 3.), (2, 2., 3.),
+            (3, 100., 100.)])
+
+
 class AuthorizerTests(unittest.TestCase):
     @staticmethod
     def authorizer_cb(action, arg1, arg2, dbname, source):
@@ -474,10 +508,12 @@ class AuthorizerLargeIntegerTests(AuthorizerTests):
 def suite():
     function_suite = unittest.makeSuite(FunctionTests, "Check")
     aggregate_suite = unittest.makeSuite(AggregateTests, "Check")
+    window_suite = unittest.makeSuite(WindowFunctionTests)
     authorizer_suite = unittest.makeSuite(AuthorizerTests)
     return unittest.TestSuite((
             function_suite,
             aggregate_suite,
+            window_suite,
             authorizer_suite,
             unittest.makeSuite(AuthorizerRaiseExceptionTests),
             unittest.makeSuite(AuthorizerIllegalTypeTests),
