@@ -45,6 +45,10 @@
 #define HAVE_BACKUP_API
 #endif
 
+#if SQLITE_VERSION_NUMBER >= 3025000
+#define HAVE_WINDOW_FUNCTION
+#endif
+
 _Py_IDENTIFIER(cursor);
 
 static const char * const begin_statements[] = {
@@ -75,8 +79,8 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
 {
     static char *kwlist[] = {
         "database", "timeout", "detect_types", "isolation_level",
-        "check_same_thread", "factory", "cached_statements", "uri",
-        NULL
+        "check_same_thread", "factory", "cached_statements", "uri", "flags",
+        "vfs", NULL
     };
 
     char* database;
@@ -86,14 +90,17 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     PyObject* factory = NULL;
     int check_same_thread = 1;
     int cached_statements = 100;
+    int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+    char *vfs = NULL;
     int uri = 0;
     double timeout = 5.0;
     int rc;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&|diOiOip", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&|diOiOipiz", kwlist,
                                      PyUnicode_FSConverter, &database_obj, &timeout, &detect_types,
                                      &isolation_level, &check_same_thread,
-                                     &factory, &cached_statements, &uri))
+                                     &factory, &cached_statements, &uri,
+                                     &flags, &vfs))
     {
         return -1;
     }
@@ -114,21 +121,15 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     Py_INCREF(&PyUnicode_Type);
     Py_XSETREF(self->text_factory, (PyObject*)&PyUnicode_Type);
 
-#ifdef SQLITE_OPEN_URI
-    Py_BEGIN_ALLOW_THREADS
-    rc = sqlite3_open_v2(database, &self->db,
-                         SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE |
-                         (uri ? SQLITE_OPEN_URI : 0), NULL);
-#else
+#ifndef SQLITE_OPEN_URI
     if (uri) {
         PyErr_SetString(pysqlite_NotSupportedError, "URIs not supported");
         return -1;
     }
-    Py_BEGIN_ALLOW_THREADS
-    /* No need to use sqlite3_open_v2 as sqlite3_open(filename, db) is the
-       same as sqlite3_open_v2(filename, db, SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE, NULL). */
-    rc = sqlite3_open(database, &self->db);
 #endif
+    Py_BEGIN_ALLOW_THREADS
+    rc = sqlite3_open_v2(database, &self->db,
+                         flags | (uri ? SQLITE_OPEN_URI : 0), vfs);
     Py_END_ALLOW_THREADS
 
     Py_DECREF(database_obj);
@@ -746,6 +747,103 @@ error:
     PyGILState_Release(threadstate);
 }
 
+#ifdef HAVE_WINDOW_FUNCTION
+
+void _pysqlite_value_callback(sqlite3_context* context)
+{
+    PyObject* function_result;
+    PyObject** aggregate_instance;
+    _Py_IDENTIFIER(value);
+    int ok;
+    PyObject *exception, *val, *tb;
+    int restore;
+
+    PyGILState_STATE threadstate;
+
+    threadstate = PyGILState_Ensure();
+
+    aggregate_instance = (PyObject**)sqlite3_aggregate_context(context, sizeof(PyObject*));
+    if (!*aggregate_instance) {
+        goto error;
+    }
+
+    /* Keep the exception (if any) of the last call to step() or inverse() */
+    PyErr_Fetch(&exception, &val, &tb);
+    restore = 1;
+
+    function_result = _PyObject_CallMethodId(*aggregate_instance, &PyId_value, NULL);
+
+    ok = 0;
+    if (function_result) {
+        ok = _pysqlite_set_result(context, function_result) == 0;
+        Py_DECREF(function_result);
+    }
+    if (!ok) {
+        if (_pysqlite_enable_callback_tracebacks) {
+            PyErr_Print();
+        } else {
+            PyErr_Clear();
+        }
+        _sqlite3_result_error(context, "user-defined window function's 'value' method raised error", -1);
+    }
+
+    if (restore) {
+        /* Restore the exception (if any) of the last call to step(),
+           but clear also the current exception if finalize() failed */
+        PyErr_Restore(exception, val, tb);
+    }
+
+error:
+    PyGILState_Release(threadstate);
+}
+
+static void _pysqlite_inverse_callback(sqlite3_context *context, int argc, sqlite3_value** params)
+{
+    PyObject* args;
+    PyObject* function_result = NULL;
+    PyObject** aggregate_instance;
+    PyObject* invmethod = NULL;
+
+    PyGILState_STATE threadstate;
+
+    threadstate = PyGILState_Ensure();
+
+    aggregate_instance = (PyObject**)sqlite3_aggregate_context(context, sizeof(PyObject*));
+    if (!*aggregate_instance) {
+        goto error;
+    }
+
+    invmethod = PyObject_GetAttrString(*aggregate_instance, "inverse");
+    if (!invmethod) {
+        goto error;
+    }
+
+    args = _pysqlite_build_py_params(context, argc, params);
+    if (!args) {
+        goto error;
+    }
+
+    function_result = PyObject_CallObject(invmethod, args);
+    Py_DECREF(args);
+
+    if (!function_result) {
+        if (_pysqlite_enable_callback_tracebacks) {
+            PyErr_Print();
+        } else {
+            PyErr_Clear();
+        }
+        _sqlite3_result_error(context, "user-defined aggregate's 'inverse' method raised error", -1);
+    }
+
+error:
+    Py_XDECREF(invmethod);
+    Py_XDECREF(function_result);
+
+    PyGILState_Release(threadstate);
+}
+
+#endif
+
 static void _pysqlite_drop_unused_statement_references(pysqlite_Connection* self)
 {
     PyObject* new_list;
@@ -823,7 +921,7 @@ PyObject* pysqlite_connection_create_function(pysqlite_Connection* self, PyObjec
         return NULL;
     }
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "siO|$p", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "siO|p", kwlist,
                                      &name, &narg, &func, &deterministic))
     {
         return NULL;
@@ -892,6 +990,52 @@ PyObject* pysqlite_connection_create_aggregate(pysqlite_Connection* self, PyObje
     }
     Py_RETURN_NONE;
 }
+
+#ifdef HAVE_WINDOW_FUNCTION
+
+PyObject* pysqlite_connection_create_window_function(pysqlite_Connection* self, PyObject* args, PyObject* kwargs)
+{
+    PyObject* window_function_class;
+
+    int n_arg;
+    char* name;
+    static char *kwlist[] = { "name", "n_arg", "window_function_class", NULL };
+    int rc;
+
+    if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
+        return NULL;
+    }
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "siO:create_window_function",
+                                      kwlist, &name, &n_arg, &window_function_class)) {
+        return NULL;
+    }
+
+    if (PyDict_SetItem(self->function_pinboard, window_function_class, Py_None) == -1) {
+        return NULL;
+    }
+
+    rc = sqlite3_create_window_function(
+        self->db,
+        name,
+        n_arg,
+        SQLITE_UTF8,
+        (void*)window_function_class,
+        &_pysqlite_step_callback,
+        &_pysqlite_final_callback,
+        &_pysqlite_value_callback,
+        &_pysqlite_inverse_callback,
+        NULL);
+
+    if (rc != SQLITE_OK) {
+        /* Workaround for SQLite bug: no error code or string is available here */
+        PyErr_SetString(pysqlite_OperationalError, "Error creating window function");
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+#endif
+
 
 static int _authorizer_callback(void* user_arg, int action, const char* arg1, const char* arg2 , const char* dbname, const char* access_attempt_source)
 {
@@ -1429,56 +1573,6 @@ finally:
     return retval;
 }
 
-/* Function author: Paul Kippes <kippesp@gmail.com>
- * Class method of Connection to call the Python function _iterdump
- * of the sqlite3 module.
- */
-static PyObject *
-pysqlite_connection_iterdump(pysqlite_Connection* self, PyObject* args)
-{
-    _Py_IDENTIFIER(_iterdump);
-    PyObject* retval = NULL;
-    PyObject* module = NULL;
-    PyObject* module_dict;
-    PyObject* pyfn_iterdump;
-
-    if (!pysqlite_check_connection(self)) {
-        goto finally;
-    }
-
-    module = PyImport_ImportModule(MODULE_NAME ".dump");
-    if (!module) {
-        goto finally;
-    }
-
-    module_dict = PyModule_GetDict(module);
-    if (!module_dict) {
-        goto finally;
-    }
-
-    pyfn_iterdump = _PyDict_GetItemIdWithError(module_dict, &PyId__iterdump);
-    if (!pyfn_iterdump) {
-        if (!PyErr_Occurred()) {
-            PyErr_SetString(pysqlite_OperationalError,
-                            "Failed to obtain _iterdump() reference");
-        }
-        goto finally;
-    }
-
-    args = PyTuple_New(1);
-    if (!args) {
-        goto finally;
-    }
-    Py_INCREF(self);
-    PyTuple_SetItem(args, 0, (PyObject*)self);
-    retval = PyObject_CallObject(pyfn_iterdump, args);
-
-finally:
-    Py_XDECREF(args);
-    Py_XDECREF(module);
-    return retval;
-}
-
 #ifdef HAVE_BACKUP_API
 static PyObject *
 pysqlite_connection_backup(pysqlite_Connection *self, PyObject *args, PyObject *kwds)
@@ -1780,6 +1874,10 @@ static PyMethodDef connection_methods[] = {
         PyDoc_STR("Creates a new function. Non-standard.")},
     {"create_aggregate", (PyCFunction)(void(*)(void))pysqlite_connection_create_aggregate, METH_VARARGS|METH_KEYWORDS,
         PyDoc_STR("Creates a new aggregate. Non-standard.")},
+    #ifdef HAVE_WINDOW_FUNCTION
+    {"create_window_function", (PyCFunction)pysqlite_connection_create_window_function, METH_VARARGS|METH_KEYWORDS,
+        PyDoc_STR("Creates a new window function. Non-standard.")},
+    #endif
     {"set_authorizer", (PyCFunction)(void(*)(void))pysqlite_connection_set_authorizer, METH_VARARGS|METH_KEYWORDS,
         PyDoc_STR("Sets authorizer callback. Non-standard.")},
     #ifdef HAVE_LOAD_EXTENSION
@@ -1802,8 +1900,6 @@ static PyMethodDef connection_methods[] = {
         PyDoc_STR("Creates a collation function. Non-standard.")},
     {"interrupt", (PyCFunction)pysqlite_connection_interrupt, METH_NOARGS,
         PyDoc_STR("Abort any pending database operation. Non-standard.")},
-    {"iterdump", (PyCFunction)pysqlite_connection_iterdump, METH_NOARGS,
-        PyDoc_STR("Returns iterator to the dump of the database in an SQL text format. Non-standard.")},
     #ifdef HAVE_BACKUP_API
     {"backup", (PyCFunction)(void(*)(void))pysqlite_connection_backup, METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Makes a backup of the database. Non-standard.")},
