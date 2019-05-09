@@ -82,6 +82,26 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
     self->is_dml = !sqlite3_stmt_readonly(self->st);
     Py_END_ALLOW_THREADS
 
+    // sqlite3_stmt_readonly will return true if the statement is BEGIN
+    // EXCLUSIVE or BEGIN IMMEDIATE. So, to avoid trying to open a
+    // transaction-in-a-transaction, we will treat these statements as being
+    // readonly.
+    if (self->is_dml) {
+        for (p = sql_cstr; *p != 0; p++) {
+            switch (*p) {
+                case ' ':
+                case '\r':
+                case '\n':
+                case '\t':
+                    continue;
+            }
+
+            if (PyOS_strnicmp(p, "begin", 5) == 0)
+                self->is_dml = 0;
+            break;
+        }
+    }
+
     self->db = connection->db;
 
     if (rc == SQLITE_OK && pysqlite_check_remaining_sql(tail)) {

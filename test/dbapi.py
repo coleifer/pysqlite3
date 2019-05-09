@@ -144,19 +144,21 @@ class ConnectionTests(unittest.TestCase):
         # Can't use db from setUp because we want to test initial state.
         cx = sqlite.connect(":memory:")
         cu = cx.cursor()
-        self.assertEqual(cx.in_transaction, False)
+        self.assertFalse(cx.in_transaction)
         cu.execute("create table transactiontest(id integer primary key, name text)")
-        self.assertEqual(cx.in_transaction, False)
-        cu.execute("insert into transactiontest(name) values (?)", ("foo",))
-        self.assertEqual(cx.in_transaction, True)
-        cu.execute("select name from transactiontest where name=?", ["foo"])
-        row = cu.fetchone()
-        self.assertEqual(cx.in_transaction, True)
+        self.assertTrue(cx.in_transaction)
         cx.commit()
-        self.assertEqual(cx.in_transaction, False)
+        self.assertFalse(cx.in_transaction)
+        cu.execute("insert into transactiontest(name) values (?)", ("foo",))
+        self.assertTrue(cx.in_transaction)
         cu.execute("select name from transactiontest where name=?", ["foo"])
         row = cu.fetchone()
-        self.assertEqual(cx.in_transaction, False)
+        self.assertTrue(cx.in_transaction)
+        cx.commit()
+        self.assertFalse(cx.in_transaction)
+        cu.execute("select name from transactiontest where name=?", ["foo"])
+        row = cu.fetchone()
+        self.assertFalse(cx.in_transaction)
 
     def CheckInTransactionRO(self):
         with self.assertRaises(AttributeError):
@@ -845,6 +847,7 @@ class SqliteOnConflictTests(unittest.TestCase):
             id INTEGER PRIMARY KEY, name TEXT, unique_name TEXT UNIQUE
           );
         """)
+        self.cx.commit()
 
     def tearDown(self):
         self.cu.close()
