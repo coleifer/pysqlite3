@@ -1595,14 +1595,16 @@ pysqlite_connection_backup(pysqlite_Connection *self, PyObject *args, PyObject *
         return NULL;
     }
 
+    // XXX: We use _PyTime_ROUND_CEILING to support 3.6.x, but it should
+    // use _PyTime_ROUND_TIMEOUT instead.
     if (sleep_obj != NULL) {
         _PyTime_t sleep_secs;
         if (_PyTime_FromSecondsObject(&sleep_secs, sleep_obj,
-                                      _PyTime_ROUND_TIMEOUT)) {
+                                      _PyTime_ROUND_CEILING)) {
             return NULL;
         }
         _PyTime_t ms = _PyTime_AsMilliseconds(sleep_secs,
-                                              _PyTime_ROUND_TIMEOUT);
+                                              _PyTime_ROUND_CEILING);
         if (ms < INT_MIN || ms > INT_MAX) {
             PyErr_SetString(PyExc_OverflowError, "sleep is too large");
             return NULL;
