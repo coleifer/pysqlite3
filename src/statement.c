@@ -73,32 +73,35 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
     Py_INCREF(sql);
     self->sql = sql;
 
-    /* Determine if the statement is a DML statement.
-       SELECT is the only exception. See #9924. */
-    self->is_dml = 0;
-    for (p = sql_cstr; *p != 0; p++) {
-        switch (*p) {
-            case ' ':
-            case '\r':
-            case '\n':
-            case '\t':
-                continue;
-        }
-
-        self->is_dml = (PyOS_strnicmp(p, "insert", 6) == 0)
-                    || (PyOS_strnicmp(p, "update", 6) == 0)
-                    || (PyOS_strnicmp(p, "delete", 6) == 0)
-                    || (PyOS_strnicmp(p, "replace", 7) == 0);
-        break;
-    }
-
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_prepare_v2(connection->db,
                             sql_cstr,
                             -1,
                             &self->st,
                             &tail);
+    self->is_dml = !sqlite3_stmt_readonly(self->st);
     Py_END_ALLOW_THREADS
+
+    /* To retain backward-compatibility, we need to treat DDL and certain types
+     * of transactions as being "not-dml".
+     */
+    if (self->is_dml) {
+        for (p = sql_cstr; *p != 0; p++) {
+            switch (*p) {
+                case ' ':
+                case '\r':
+                case '\n':
+                case '\t':
+                    continue;
+            }
+
+            /* DML iff statement is not a CREATE/DROP/BEGIN. */
+            self->is_dml = (PyOS_strnicmp(p, "begin", 5) &&
+                            PyOS_strnicmp(p, "create", 6) &&
+                            PyOS_strnicmp(p, "drop", 4));
+            break;
+        }
+    }
 
     self->db = connection->db;
 
