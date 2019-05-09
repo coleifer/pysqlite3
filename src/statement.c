@@ -98,7 +98,11 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
             /* DML iff statement is not a CREATE/DROP/BEGIN. */
             self->is_dml = (PyOS_strnicmp(p, "begin", 5) &&
                             PyOS_strnicmp(p, "create", 6) &&
-                            PyOS_strnicmp(p, "drop", 4));
+                            PyOS_strnicmp(p, "drop", 4) &&
+                            PyOS_strnicmp(p, "alter", 5) &&
+                            PyOS_strnicmp(p, "analyze", 7) &&
+                            PyOS_strnicmp(p, "reindex", 7) &&
+                            PyOS_strnicmp(p, "vacuum", 6));
             break;
         }
     }
