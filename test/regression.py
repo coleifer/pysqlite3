@@ -494,6 +494,13 @@ class DMLStatementDetectionTestCase(unittest.TestCase):
         self.assertEqual(curs.fetchall(), [('k1', 11), ('k2', 12)])
         conn.rollback()
 
+    def test_dml_detection_begin_exclusive(self):
+        conn = sqlite.connect(':memory:')
+        conn.execute('begin exclusive')
+        self.assertTrue(conn.in_transaction)
+        conn.execute('rollback')
+        self.assertFalse(conn.in_transaction)
+
 
 def suite():
     regression_suite = unittest.makeSuite(RegressionTests, "Check")
