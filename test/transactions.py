@@ -179,6 +179,11 @@ class TransactionalDDL(unittest.TestCase):
         result = self.con.execute("select * from test").fetchall()
         self.assertEqual(result, [])
 
+        self.con.execute("alter table test rename to test2")
+        self.con.rollback()
+        result = self.con.execute("select * from test2").fetchall()
+        self.assertEqual(result, [])
+
     def CheckImmediateTransactionalDDL(self):
         # You can achieve transactional DDL by issuing a BEGIN
         # statement manually.
@@ -200,11 +205,76 @@ class TransactionalDDL(unittest.TestCase):
     def tearDown(self):
         self.con.close()
 
+
+class DMLStatementDetectionTestCase(unittest.TestCase):
+    """
+    https://bugs.python.org/issue36859
+
+    Use sqlite3_stmt_readonly to determine if the statement is DML or not.
+    """
+    @unittest.skipIf(sqlite.sqlite_version_info < (3, 8, 3),
+                     'needs sqlite 3.8.3 or newer')
+    def test_dml_detection_cte(self):
+        conn = sqlite.connect(':memory:')
+        conn.execute('create table kv ("key" text, "val" integer)')
+        self.assertFalse(conn.in_transaction)
+        conn.execute('insert into kv (key, val) values (?, ?), (?, ?)',
+                     ('k1', 1, 'k2', 2))
+        self.assertTrue(conn.in_transaction)
+
+        conn.commit()
+        self.assertFalse(conn.in_transaction)
+
+        rc = conn.execute('update kv set val=val + ?', (10,))
+        self.assertEqual(rc.rowcount, 2)
+        self.assertTrue(conn.in_transaction)
+        conn.commit()
+        self.assertFalse(conn.in_transaction)
+
+        rc = conn.execute('with c(k, v) as (select key, val + ? from kv) '
+                          'update kv set val=(select v from c where k=kv.key)',
+                          (100,))
+        self.assertEqual(rc.rowcount, 2)
+        self.assertTrue(conn.in_transaction)
+
+        curs = conn.execute('select key, val from kv order by key')
+        self.assertEqual(curs.fetchall(), [('k1', 111), ('k2', 112)])
+
+    def test_dml_detection_sql_comment(self):
+        conn = sqlite.connect(':memory:')
+        conn.execute('create table kv ("key" text, "val" integer)')
+        conn.execute('insert into kv (key, val) values (?, ?), (?, ?)',
+                     ('k1', 1, 'k2', 2))
+        conn.commit()
+
+        self.assertFalse(conn.in_transaction)
+        rc = conn.execute('-- a comment\nupdate kv set val=val + ?', (10,))
+        self.assertEqual(rc.rowcount, 2)
+        self.assertTrue(conn.in_transaction)
+
+        curs = conn.execute('select key, val from kv order by key')
+        self.assertEqual(curs.fetchall(), [('k1', 11), ('k2', 12)])
+        conn.rollback()
+
+    def test_dml_detection_begin_exclusive(self):
+        conn = sqlite.connect(':memory:')
+        conn.execute('begin exclusive')
+        self.assertTrue(conn.in_transaction)
+        conn.execute('rollback')
+        self.assertFalse(conn.in_transaction)
+
+    def test_dml_detection_vacuum(self):
+        conn = sqlite.connect(':memory:')
+        conn.execute('vacuum')
+        self.assertFalse(conn.in_transaction)
+
+
 def suite():
     default_suite = unittest.makeSuite(TransactionTests, "Check")
     special_command_suite = unittest.makeSuite(SpecialCommandTests, "Check")
     ddl_suite = unittest.makeSuite(TransactionalDDL, "Check")
-    return unittest.TestSuite((default_suite, special_command_suite, ddl_suite))
+    dml_suite = unittest.makeSuite(DMLStatementDetectionTestCase)
+    return unittest.TestSuite((default_suite, special_command_suite, ddl_suite, dml_suite))
 
 def test():
     runner = unittest.TextTestRunner()
