@@ -1,0 +1,13 @@
+language: python
+python:
+  - 3.6
+  - 3.7
+dist: bionic
+addons:
+  apt:
+    packages:
+      - libsqlite3-dev
+install:
+  - python setup.py build
+script:
+  - python test/
