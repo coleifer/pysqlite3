@@ -18,7 +18,7 @@ VERSION = '0.2.2'
 sources = [os.path.join('src', source)
            for source in ["module.c", "connection.c", "cursor.c", "cache.c",
                           "microprotocols.c", "prepare_protocol.c",
-                          "statement.c", "util.c", "row.c"]]
+                          "statement.c", "util.c", "row.c", "blob.c"]]
 
 # define packages
 packages = [PACKAGE_NAME]
