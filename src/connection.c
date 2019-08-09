@@ -1946,6 +1946,72 @@ pysqlite_connection_exit(pysqlite_Connection* self, PyObject* args)
     Py_RETURN_FALSE;
 }
 
+#ifdef SQLITE_HAS_CODEC
+
+static PyObject *
+pysqlite_connection_key(pysqlite_Connection *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwlist[] = {"key", "dbname", NULL};
+    int rc = SQLITE_OK;
+    const char *key = NULL;
+    Py_ssize_t key_len = 0;
+    char *dbname = NULL;
+
+    if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self))
+        return NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "z#|es:key(key,dbname=None)",
+                                     kwlist, &key, &key_len, "utf-8", &dbname))
+        return NULL;
+
+    if (dbname) {
+        rc = sqlite3_key_v2(self->db, dbname, key, key_len);
+    } else {
+        rc = sqlite3_key(self->db, key, key_len);
+    }
+
+    if (dbname) PyMem_Free(dbname);
+
+    if (rc != SQLITE_OK) {
+        _pysqlite_seterror(self->db, NULL);
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+pysqlite_connection_rekey(pysqlite_Connection *self, PyObject *args, PyObject *kwargs)
+{
+    static char *kwlist[] = {"key", "dbname", NULL};
+    int rc = SQLITE_OK;
+    const char *key = NULL;
+    Py_ssize_t key_len = 0;
+    char *dbname = NULL;
+
+    if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self))
+        return NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "z#|es:key(key,dbname=None)",
+                                     kwlist, &key, &key_len, "utf-8", &dbname))
+        return NULL;
+
+    if (dbname) {
+        rc = sqlite3_rekey_v2(self->db, dbname, key, key_len);
+    } else {
+        rc = sqlite3_rekey(self->db, key, key_len);
+    }
+
+    if (dbname) PyMem_Free(dbname);
+
+    if (rc != SQLITE_OK) {
+        _pysqlite_seterror(self->db, NULL);
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+#endif
+
 static const char connection_doc[] =
 PyDoc_STR("SQLite database connection object.");
 
@@ -2000,6 +2066,12 @@ static PyMethodDef connection_methods[] = {
     #ifdef HAVE_BACKUP_API
     {"backup", (PyCFunction)(void(*)(void))pysqlite_connection_backup, METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Makes a backup of the database. Non-standard.")},
+    #endif
+    #ifdef SQLITE_HAS_CODEC
+    {"key", (PyCFunction)pysqlite_connection_key, METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR("Initially set encryption key for database.")},
+    {"rekey", (PyCFunction)pysqlite_connection_rekey, METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR("Change encryption key for database.")},
     #endif
     {"__enter__", (PyCFunction)pysqlite_connection_enter, METH_NOARGS,
         PyDoc_STR("For context manager. Non-standard.")},
