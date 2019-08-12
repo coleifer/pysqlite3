@@ -1,7 +1,7 @@
 pysqlite3
 =========
 
-This library takes the SQLite module from Python 3.6.4 and packages it as a
+This library takes the SQLite module from Python 3 and packages it as a
 separately-installable module.
 
 This may be useful for creating SQLite modules capable of working with other
@@ -9,9 +9,12 @@ versions of SQLite (via the amalgamation option).
 
 Additional features:
 
-* Support for user-defined window functions (requires SQLite >= 3.25)
-* Support specifying flags when opening connection
-* Support specifying VFS when opening connection
+* User-defined window functions (requires SQLite >= 3.25)
+* Flags and VFS an be specified when opening connection
+* Incremental BLOB I/O, [bpo-24905](https://github.com/python/cpython/pull/271)
+* Improved error messages, [bpo-16379](https://github.com/python/cpython/pull/1108)
+* Simplified detection of DML statements via `sqlite3_stmt_readonly`.
+* Sqlite native backup API (also present in standard library 3.7 and newer).
 
 Building with System SQLite
 ---------------------------
@@ -46,5 +49,3 @@ $ python setup.py build_static build
 ```
 
 You now have a statically-linked, completely self-contained `pysqlite3`.
-
-<small>Original code (c) Gerhard Häring</small>
