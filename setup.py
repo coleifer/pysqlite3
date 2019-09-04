@@ -42,6 +42,12 @@ class SystemLibSqliteBuilder(build_ext):
 
     def build_extension(self, ext):
         log.info(self.description)
+
+        # For some reason, when setup.py develop is run, it ignores the
+        # configuration in setup.cfg, so we just explicitly add libsqlite3.
+        # Oddly, running setup.py build_ext -i (for in-place) works fine and
+        # correctly reads the setup.cfg.
+        ext.libraries.append('sqlite3')
         build_ext.build_extension(self, ext)
 
 
