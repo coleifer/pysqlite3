@@ -8,6 +8,6 @@ addons:
     packages:
       - libsqlite3-dev
 install:
-  - python setup.py install
+  - python setup.py build_ext -i
 script:
   - PYTHONPATH=".:$PYTHONPATH" python test/
