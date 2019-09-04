@@ -121,7 +121,7 @@ def get_setup_args():
         license="zlib/libpng",
         platforms="ALL",
         url="https://github.com/coleifer/pysqlite3",
-        package_dir={PACKAGE_NAME: "lib"},
+        package_dir={PACKAGE_NAME: "pysqlite3"},
         packages=packages,
         ext_modules=[Extension(
             name=PACKAGE_NAME + EXTENSION_MODULE_NAME,
