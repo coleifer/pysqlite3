@@ -16,6 +16,11 @@ Additional features:
 * Simplified detection of DML statements via `sqlite3_stmt_readonly`.
 * Sqlite native backup API (also present in standard library 3.7 and newer).
 
+A completely self-contained binary package (wheel) is available for versions
+0.4.1 and newer as `pysqlite3-binary`. This package contains the latest release
+of SQLite compiled with numerous extensions, and requires no external
+dependencies.
+
 Building with System SQLite
 ---------------------------
 
@@ -33,9 +38,10 @@ you need to obtain the SQLite3 source code and copy `sqlite3.c` and `sqlite3.h`
 into the source tree.
 
 ```
-# Download the latest version of SQLite source code and build the source
+# Download the latest release of SQLite source code and build the source
 # amalgamation files (sqlite3.c and sqlite3.h).
-$ wget https://www.sqlite.org/src/tarball/sqlite.tar.gz
+$ wget https://www.sqlite.org/src/tarball/sqlite.tar.gz?r=release \
+    -O sqlite.tar.gz
 $ tar xzf sqlite.tar.gz
 $ cd sqlite/
 $ ./configure
@@ -49,3 +55,14 @@ $ python setup.py build_static build
 ```
 
 You now have a statically-linked, completely self-contained `pysqlite3`.
+
+Using the binary package
+------------------------
+
+A binary package (wheel) is available for linux with a completely
+self-contained  `pysqlite3`, statically-linked against the most recent release
+of SQLite.
+
+```
+$ pip install pysqlite3-binary
+```
