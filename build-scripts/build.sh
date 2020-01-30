@@ -25,3 +25,6 @@ cp "sqlite/sqlite3.h" pysqlite3/
 
 # Create the wheels and strip symbols to produce manylinux wheels.
 docker run -it -v $(pwd):/io quay.io/pypa/manylinux1_x86_64 /io/_build_wheels.sh
+
+# Remove un-stripped wheels.
+sudo rm ./wheelhouse/*-linux_*
