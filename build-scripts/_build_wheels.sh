@@ -12,10 +12,14 @@ PY36="/opt/python/cp36-cp36m/bin"
 PY37="/opt/python/cp37-cp37m/bin"
 "${PY37}/python" setup.py build_static
 
+PY38="/opt/python/cp38-cp38/bin"
+"${PY38}/python" setup.py build_static
+
 sed -i "s|name=PACKAGE_NAME|name='pysqlite3-binary'|g" setup.py
 
 "${PY36}/pip" wheel /io/pysqlite3 -w /io/wheelhouse
 "${PY37}/pip" wheel /io/pysqlite3 -w /io/wheelhouse
+"${PY38}/pip" wheel /io/pysqlite3 -w /io/wheelhouse
 
 for whl in /io/wheelhouse/*.whl; do
   auditwheel repair "$whl" -w /io/wheelhouse/
