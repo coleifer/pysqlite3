@@ -6,6 +6,9 @@ cd /io/pysqlite3
 
 sed -i "s|name='pysqlite3-binary'|name=PACKAGE_NAME|g" setup.py
 
+PY35="/opt/python/cp35-cp35m/bin"
+"${PY35}/python" setup.py build_static
+
 PY36="/opt/python/cp36-cp36m/bin"
 "${PY36}/python" setup.py build_static
 
@@ -17,6 +20,7 @@ PY38="/opt/python/cp38-cp38/bin"
 
 sed -i "s|name=PACKAGE_NAME|name='pysqlite3-binary'|g" setup.py
 
+"${PY35}/pip" wheel /io/pysqlite3 -w /io/wheelhouse
 "${PY36}/pip" wheel /io/pysqlite3 -w /io/wheelhouse
 "${PY37}/pip" wheel /io/pysqlite3 -w /io/wheelhouse
 "${PY38}/pip" wheel /io/pysqlite3 -w /io/wheelhouse

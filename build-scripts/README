@@ -1,7 +1,7 @@
 ### Building wheels
 
 This directory contains a utility script (`build.sh`) which can be used to 
-create completely self-contained manylinux wheels for Python 3.6 - 3.8. The 
+create completely self-contained manylinux wheels for Python 3.5 - 3.8. The
 build script fetches the latest release of Sqlite and generates the source
 amalgamation and header file, which are then compiled into `pysqlite3`. The
 resulting Python package can be deployed to any linux environment and will
