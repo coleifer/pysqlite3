@@ -99,6 +99,9 @@ class AmalgationLibSqliteBuilder(build_ext):
         # Always use memory for temp store.
         ext.define_macros.append(("SQLITE_TEMP_STORE", "3"))
 
+        # Increase the maximum number of "host parameters" which SQLite will accept
+        ext.define_macros.append(("SQLITE_MAX_VARIABLE_NUMBER", "250000"))
+
         ext.include_dirs.append(self.amalgamation_root)
         ext.sources.append(os.path.join(self.amalgamation_root, "sqlite3.c"))
 
