@@ -286,7 +286,7 @@ class FunctionTests(unittest.TestCase):
     def CheckFuncDeterministic(self):
         mock = unittest.mock.Mock(return_value=None)
         self.con.create_function("deterministic", 0, mock, True)
-        self.con.execute("select deterministic() = deterministic()")
+        self.con.execute("select 1 where deterministic() AND deterministic()")
         self.assertEqual(mock.call_count, 1)
 
     @unittest.skipIf(sqlite.sqlite_version_info >= (3, 8, 3), "SQLite < 3.8.3 needed")
