@@ -84,7 +84,7 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
         "vfs", NULL
     };
 
-    char* database;
+    const char* database;
     PyObject* database_obj;
     int detect_types = 0;
     PyObject* isolation_level = NULL;
