@@ -31,8 +31,6 @@
 #include "prepare_protocol.h"
 #include "util.h"
 
-#include "pythread.h"
-
 #define ACTION_FINALIZE 1
 #define ACTION_RESET 2
 
@@ -1833,7 +1831,7 @@ pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
     const char *uppercase_name_str;
     int rc;
     unsigned int kind;
-    void *data;
+    const void *data;
 
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
         goto finally;
