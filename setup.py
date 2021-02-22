@@ -102,6 +102,9 @@ class AmalgationLibSqliteBuilder(build_ext):
         # Increase the maximum number of "host parameters" which SQLite will accept
         ext.define_macros.append(("SQLITE_MAX_VARIABLE_NUMBER", "250000"))
 
+        # Increase maximum allowed memory-map size to 1TB
+        ext.define_macros.append(("SQLITE_MAX_MMAP_SIZE", str(2**40)))
+
         ext.include_dirs.append(self.amalgamation_root)
         ext.sources.append(os.path.join(self.amalgamation_root, "sqlite3.c"))
 
