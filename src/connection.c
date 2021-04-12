@@ -460,11 +460,10 @@ int pysqlite_check_connection(pysqlite_Connection* con)
 PyObject* _pysqlite_connection_begin(pysqlite_Connection* self)
 {
     int rc;
-    const char* tail;
     sqlite3_stmt* statement;
 
     Py_BEGIN_ALLOW_THREADS
-    rc = sqlite3_prepare_v2(self->db, self->begin_statement, -1, &statement, &tail);
+    rc = sqlite3_prepare_v2(self->db, self->begin_statement, -1, &statement, NULL);
     Py_END_ALLOW_THREADS
 
     if (rc != SQLITE_OK) {
@@ -496,7 +495,6 @@ error:
 PyObject* pysqlite_connection_commit(pysqlite_Connection* self, PyObject* args)
 {
     int rc;
-    const char* tail;
     sqlite3_stmt* statement;
 
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
@@ -506,7 +504,7 @@ PyObject* pysqlite_connection_commit(pysqlite_Connection* self, PyObject* args)
     if (!sqlite3_get_autocommit(self->db)) {
 
         Py_BEGIN_ALLOW_THREADS
-        rc = sqlite3_prepare_v2(self->db, "COMMIT", -1, &statement, &tail);
+        rc = sqlite3_prepare_v2(self->db, "COMMIT", -1, &statement, NULL);
         Py_END_ALLOW_THREADS
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->db, NULL);
@@ -538,7 +536,6 @@ error:
 PyObject* pysqlite_connection_rollback(pysqlite_Connection* self, PyObject* args)
 {
     int rc;
-    const char* tail;
     sqlite3_stmt* statement;
 
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
@@ -549,7 +546,7 @@ PyObject* pysqlite_connection_rollback(pysqlite_Connection* self, PyObject* args
         pysqlite_do_all_statements(self, ACTION_RESET, 1);
 
         Py_BEGIN_ALLOW_THREADS
-        rc = sqlite3_prepare_v2(self->db, "ROLLBACK", -1, &statement, &tail);
+        rc = sqlite3_prepare_v2(self->db, "ROLLBACK", -1, &statement, NULL);
         Py_END_ALLOW_THREADS
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->db, NULL);
