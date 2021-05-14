@@ -74,8 +74,6 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
     int uri = 0;
     double timeout = 5.0;
 
-    PyObject* result;
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|diOiOipiz", kwlist,
                                      &database, &timeout, &detect_types,
                                      &isolation_level, &check_same_thread,
@@ -89,9 +87,7 @@ static PyObject* module_connect(PyObject* self, PyObject* args, PyObject*
         factory = (PyObject*)&pysqlite_ConnectionType;
     }
 
-    result = PyObject_Call(factory, args, kwargs);
-
-    return result;
+    return PyObject_Call(factory, args, kwargs);
 }
 
 PyDoc_STRVAR(module_connect_doc,
@@ -441,6 +437,11 @@ PyMODINIT_FUNC PyInit__sqlite3(void)
     PyObject *module, *dict;
     PyObject *tmp_obj;
     int i;
+    int rc = sqlite3_initialize();
+    if (rc != SQLITE_OK) {
+        PyErr_SetString(PyExc_ImportError, sqlite3_errstr(rc));
+        return NULL;
+    }
 
     module = PyModule_Create(&_sqlite3module);
 
@@ -453,8 +454,7 @@ PyMODINIT_FUNC PyInit__sqlite3(void)
         (pysqlite_prepare_protocol_setup_types() < 0) ||
         (pysqlite_blob_setup_types() < 0)
        ) {
-        Py_XDECREF(module);
-        return NULL;
+        goto error;
     }
 
     Py_INCREF(&pysqlite_ConnectionType);
@@ -570,12 +570,11 @@ PyMODINIT_FUNC PyInit__sqlite3(void)
     /* initialize the default converters */
     converters_init(dict);
 
-error:
-    if (PyErr_Occurred())
-    {
-        PyErr_SetString(PyExc_ImportError, MODULE_NAME ": init failed");
-        Py_DECREF(module);
-        module = NULL;
-    }
     return module;
+
+error:
+    sqlite3_shutdown();
+    PyErr_SetString(PyExc_ImportError, MODULE_NAME ": init failed");
+    Py_XDECREF(module);
+    return NULL;
 }

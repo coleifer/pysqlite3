@@ -327,7 +327,7 @@ _pysqlite_fetch_one_row(pysqlite_Cursor* self)
         if (!converted) {
             goto error;
         }
-        PyTuple_SetItem(row, i, converted);
+        PyTuple_SET_ITEM(row, i, converted);
     }
 
     if (PyErr_Occurred())
@@ -377,7 +377,6 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
     PyObject* func_args;
     PyObject* result;
     int numcols;
-    PyObject* descriptor;
     PyObject* column_name;
     PyObject* second_argument = NULL;
     sqlite_int64 lastrowid;
@@ -522,7 +521,7 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
                 }
             }
             (void)pysqlite_statement_reset(self->statement);
-            _pysqlite_seterror(self->connection->db, NULL);
+            _pysqlite_seterror(self->connection->db);
             goto error;
         }
 
@@ -541,24 +540,24 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
                 goto error;
             }
             for (i = 0; i < numcols; i++) {
-                descriptor = PyTuple_New(7);
-                if (!descriptor) {
+                const char *colname;
+                colname = sqlite3_column_name(self->statement->st, i);
+                if (colname == NULL) {
+                    PyErr_NoMemory();
                     goto error;
                 }
-                column_name = _pysqlite_build_column_name(self,
-                                sqlite3_column_name(self->statement->st, i));
+                column_name = _pysqlite_build_column_name(self, colname);
                 if (!column_name) {
-                    Py_DECREF(descriptor);
                     goto error;
                 }
-                PyTuple_SetItem(descriptor, 0, column_name);
-                Py_INCREF(Py_None); PyTuple_SetItem(descriptor, 1, Py_None);
-                Py_INCREF(Py_None); PyTuple_SetItem(descriptor, 2, Py_None);
-                Py_INCREF(Py_None); PyTuple_SetItem(descriptor, 3, Py_None);
-                Py_INCREF(Py_None); PyTuple_SetItem(descriptor, 4, Py_None);
-                Py_INCREF(Py_None); PyTuple_SetItem(descriptor, 5, Py_None);
-                Py_INCREF(Py_None); PyTuple_SetItem(descriptor, 6, Py_None);
-                PyTuple_SetItem(self->description, i, descriptor);
+                PyObject *descriptor = PyTuple_Pack(7, column_name,
+                                                    Py_None, Py_None, Py_None,
+                                                    Py_None, Py_None, Py_None);
+                Py_DECREF(column_name);
+                if (descriptor == NULL) {
+                    goto error;
+                }
+                PyTuple_SET_ITEM(self->description, i, descriptor);
             }
         }
 
@@ -667,29 +666,28 @@ pysqlite_cursor_executescript(pysqlite_Cursor* self, PyObject* args)
                                 &script_cstr);
         Py_END_ALLOW_THREADS
         if (rc != SQLITE_OK) {
-            _pysqlite_seterror(self->connection->db, NULL);
+            _pysqlite_seterror(self->connection->db);
             goto error;
         }
 
         /* execute statement, and ignore results of SELECT statements */
-        rc = SQLITE_ROW;
-        while (rc == SQLITE_ROW) {
+        do {
             rc = pysqlite_step(statement, self->connection);
             if (PyErr_Occurred()) {
                 (void)sqlite3_finalize(statement);
                 goto error;
             }
-        }
+        } while (rc == SQLITE_ROW);
 
         if (rc != SQLITE_DONE) {
             (void)sqlite3_finalize(statement);
-            _pysqlite_seterror(self->connection->db, NULL);
+            _pysqlite_seterror(self->connection->db);
             goto error;
         }
 
         rc = sqlite3_finalize(statement);
         if (rc != SQLITE_OK) {
-            _pysqlite_seterror(self->connection->db, NULL);
+            _pysqlite_seterror(self->connection->db);
             goto error;
         }
 
@@ -755,7 +753,7 @@ PyObject* pysqlite_cursor_iternext(pysqlite_Cursor *self)
         if (rc != SQLITE_DONE && rc != SQLITE_ROW) {
             (void)pysqlite_statement_reset(self->statement);
             Py_DECREF(next_row);
-            _pysqlite_seterror(self->connection->db, NULL);
+            _pysqlite_seterror(self->connection->db);
             return NULL;
         }
 

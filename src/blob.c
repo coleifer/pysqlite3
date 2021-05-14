@@ -129,7 +129,7 @@ static PyObject* inner_read(pysqlite_Blob *self, int read_length, int offset)
             PyErr_SetString(pysqlite_OperationalError,
                             "Cannot operate on modified blob");
         } else {
-            _pysqlite_seterror(self->connection->db, NULL);
+            _pysqlite_seterror(self->connection->db);
         }
         return NULL;
     }
@@ -184,7 +184,7 @@ static int write_inner(pysqlite_Blob *self, const void *buf, Py_ssize_t len, int
             PyErr_SetString(pysqlite_OperationalError,
                             "Cannot operate on modified blob");
         } else {
-            _pysqlite_seterror(self->connection->db, NULL);
+            _pysqlite_seterror(self->connection->db);
         }
         return -1;
     }
@@ -446,7 +446,7 @@ static PyObject * pysqlite_blob_subscript(pysqlite_Blob *self, PyObject *item)
                     PyErr_SetString(pysqlite_OperationalError,
                                     "Cannot operate on modified blob");
                 } else {
-                    _pysqlite_seterror(self->connection->db, NULL);
+                    _pysqlite_seterror(self->connection->db);
                 }
                 PyMem_Free(result_buf);
                 PyMem_Free(data_buff);
@@ -557,7 +557,7 @@ static int pysqlite_blob_ass_subscript(pysqlite_Blob *self, PyObject *item, PyOb
                     PyErr_SetString(pysqlite_OperationalError,
                                     "Cannot operate on modified blob");
                 } else {
-                    _pysqlite_seterror(self->connection->db, NULL);
+                    _pysqlite_seterror(self->connection->db);
                 }
                 PyMem_Free(data_buff);
                 rc = -1;
@@ -581,7 +581,7 @@ static int pysqlite_blob_ass_subscript(pysqlite_Blob *self, PyObject *item, PyOb
                     PyErr_SetString(pysqlite_OperationalError,
                                     "Cannot operate on modified blob");
                 } else {
-                    _pysqlite_seterror(self->connection->db, NULL);
+                    _pysqlite_seterror(self->connection->db);
                 }
                 PyMem_Free(data_buff);
                 rc = -1;

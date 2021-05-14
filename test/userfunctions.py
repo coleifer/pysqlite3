@@ -407,6 +407,11 @@ class AggregateTests(unittest.TestCase):
         val = cur.fetchone()[0]
         self.assertEqual(val, 60)
 
+    def CheckAggrNoMatch(self):
+        cur = self.con.execute('select mysum(i) from (select 1 as i) where i == 0')
+        val = cur.fetchone()[0]
+        self.assertIsNone(val)
+
 
 @unittest.skipIf(sqlite.sqlite_version_info < (3, 25, 0),
                  'requires sqlite with window-function support')
