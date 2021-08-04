@@ -1225,7 +1225,6 @@ static PyObject* pysqlite_connection_set_authorizer(pysqlite_Connection* self, P
     PyObject* authorizer_cb;
 
     static char *kwlist[] = { "authorizer_callback", NULL };
-    int rc;
 
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
         return NULL;
@@ -1236,14 +1235,21 @@ static PyObject* pysqlite_connection_set_authorizer(pysqlite_Connection* self, P
         return NULL;
     }
 
-    rc = sqlite3_set_authorizer(self->db, _authorizer_callback, (void*)authorizer_cb);
+    int rc;
+    if (authorizer_cb == Py_None) {
+        rc = sqlite3_set_authorizer(self->db, NULL, NULL);
+        Py_XSETREF(self->function_pinboard_authorizer_cb, NULL);
+    }
+    else {
+        Py_INCREF(authorizer_cb);
+        Py_XSETREF(self->function_pinboard_authorizer_cb, authorizer_cb);
+        rc = sqlite3_set_authorizer(self->db, _authorizer_callback, (void*)authorizer_cb);
+    }
+
     if (rc != SQLITE_OK) {
         PyErr_SetString(pysqlite_OperationalError, "Error setting authorizer callback");
         Py_XSETREF(self->function_pinboard_authorizer_cb, NULL);
         return NULL;
-    } else {
-        Py_INCREF(authorizer_cb);
-        Py_XSETREF(self->function_pinboard_authorizer_cb, authorizer_cb);
     }
     Py_RETURN_NONE;
 }
