@@ -437,11 +437,6 @@ PyMODINIT_FUNC PyInit__sqlite3(void)
     PyObject *module, *dict;
     PyObject *tmp_obj;
     int i;
-    int rc = sqlite3_initialize();
-    if (rc != SQLITE_OK) {
-        PyErr_SetString(PyExc_ImportError, sqlite3_errstr(rc));
-        return NULL;
-    }
 
     module = PyModule_Create(&_sqlite3module);
 
@@ -454,7 +449,8 @@ PyMODINIT_FUNC PyInit__sqlite3(void)
         (pysqlite_prepare_protocol_setup_types() < 0) ||
         (pysqlite_blob_setup_types() < 0)
        ) {
-        goto error;
+        Py_XDECREF(module);
+        return NULL;
     }
 
     Py_INCREF(&pysqlite_ConnectionType);
@@ -570,11 +566,12 @@ PyMODINIT_FUNC PyInit__sqlite3(void)
     /* initialize the default converters */
     converters_init(dict);
 
-    return module;
-
 error:
-    sqlite3_shutdown();
-    PyErr_SetString(PyExc_ImportError, MODULE_NAME ": init failed");
-    Py_XDECREF(module);
-    return NULL;
+    if (PyErr_Occurred())
+    {
+        PyErr_SetString(PyExc_ImportError, MODULE_NAME ": init failed");
+        Py_XDECREF(module);
+        module = NULL;
+    }
+    return module;
 }
