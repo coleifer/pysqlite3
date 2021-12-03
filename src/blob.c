@@ -474,7 +474,7 @@ static PyObject * pysqlite_blob_subscript(pysqlite_Blob *self, PyObject *item)
 
 static int pysqlite_blob_ass_subscript(pysqlite_Blob *self, PyObject *item, PyObject *value)
 {
-    int rc;
+    int rc = 0;
 
     if (!pysqlite_check_blob(self)) {
         return -1;
