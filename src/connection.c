@@ -1422,14 +1422,7 @@ pysqlite_connection_set_isolation_level(pysqlite_Connection* self, PyObject* iso
             return -1;
         }
 
-        PyObject *upper = PyUnicode_FromString("upper");
-        if (!upper) {
-            return -1;
-        }
-        uppercase_level = PyObject_CallMethodObjArgs(
-                        (PyObject *)&PyUnicode_Type, upper,
-                        isolation_level, NULL);
-        Py_DECREF(upper);
+        uppercase_level = PyObject_CallMethod(isolation_level, "upper", NULL);
         if (!uppercase_level) {
             return -1;
         }
@@ -1798,13 +1791,7 @@ pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
         goto finally;
     }
 
-    PyObject *upper = PyUnicode_FromString("upper");
-    if (!upper) {
-        goto finally;
-    }
-    uppercase_name = PyObject_CallMethodObjArgs((PyObject *)&PyUnicode_Type,
-                                                upper, name, NULL);
-    Py_DECREF(upper);
+    uppercase_name = PyObject_CallMethod(name, "upper", NULL);
     if (!uppercase_name) {
         goto finally;
     }
