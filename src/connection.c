@@ -48,8 +48,6 @@
 #define HAVE_WINDOW_FUNCTION
 #endif
 
-_Py_IDENTIFIER(cursor);
-
 static const char * const begin_statements[] = {
     "BEGIN ",
     "BEGIN DEFERRED",
@@ -769,7 +767,6 @@ void _pysqlite_final_callback(sqlite3_context* context)
 {
     PyObject* function_result;
     PyObject** aggregate_instance;
-    _Py_IDENTIFIER(finalize);
     int ok;
     PyObject *exception, *value, *tb;
     int restore;
@@ -794,7 +791,7 @@ void _pysqlite_final_callback(sqlite3_context* context)
     PyErr_Fetch(&exception, &value, &tb);
     restore = 1;
 
-    function_result = _PyObject_CallMethodId(*aggregate_instance, &PyId_finalize, NULL);
+    function_result = PyObject_CallMethod(*aggregate_instance, "finalize", NULL);
 
     Py_DECREF(*aggregate_instance);
 
@@ -833,7 +830,6 @@ void _pysqlite_value_callback(sqlite3_context* context)
 {
     PyObject* function_result;
     PyObject** aggregate_instance;
-    _Py_IDENTIFIER(value);
     int ok;
     PyObject *exception, *val, *tb;
     int restore;
@@ -851,7 +847,7 @@ void _pysqlite_value_callback(sqlite3_context* context)
     PyErr_Fetch(&exception, &val, &tb);
     restore = 1;
 
-    function_result = _PyObject_CallMethodId(*aggregate_instance, &PyId_value, NULL);
+    function_result = PyObject_CallMethod(*aggregate_instance, "value", NULL);
 
     ok = 0;
     if (function_result) {
@@ -1418,7 +1414,6 @@ pysqlite_connection_set_isolation_level(pysqlite_Connection* self, PyObject* iso
     } else {
         const char * const *candidate;
         PyObject *uppercase_level;
-        _Py_IDENTIFIER(upper);
 
         if (!PyUnicode_Check(isolation_level)) {
             PyErr_Format(PyExc_TypeError,
@@ -1427,8 +1422,8 @@ pysqlite_connection_set_isolation_level(pysqlite_Connection* self, PyObject* iso
             return -1;
         }
 
-        uppercase_level = _PyObject_CallMethodIdObjArgs(
-                        (PyObject *)&PyUnicode_Type, &PyId_upper,
+        uppercase_level = PyObject_CallMethodObjArgs(
+                        (PyObject *)&PyUnicode_Type, "upper",
                         isolation_level, NULL);
         if (!uppercase_level) {
             return -1;
@@ -1515,27 +1510,19 @@ PyObject* pysqlite_connection_execute(pysqlite_Connection* self, PyObject* args)
 {
     PyObject* cursor = 0;
     PyObject* result = 0;
-    PyObject* method = 0;
 
-    cursor = _PyObject_CallMethodId((PyObject*)self, &PyId_cursor, NULL);
+    cursor = pysqlite_connection_cursor(self, NULL);
     if (!cursor) {
         goto error;
     }
 
-    method = PyObject_GetAttrString(cursor, "execute");
-    if (!method) {
-        Py_CLEAR(cursor);
-        goto error;
-    }
-
-    result = PyObject_CallObject(method, args);
+    result = pysqlite_cursor_execute(cursor, args);
     if (!result) {
         Py_CLEAR(cursor);
     }
 
 error:
     Py_XDECREF(result);
-    Py_XDECREF(method);
 
     return cursor;
 }
@@ -1544,27 +1531,19 @@ PyObject* pysqlite_connection_executemany(pysqlite_Connection* self, PyObject* a
 {
     PyObject* cursor = 0;
     PyObject* result = 0;
-    PyObject* method = 0;
 
-    cursor = _PyObject_CallMethodId((PyObject*)self, &PyId_cursor, NULL);
+    cursor = pysqlite_connection_cursor(self, NULL);
     if (!cursor) {
         goto error;
     }
 
-    method = PyObject_GetAttrString(cursor, "executemany");
-    if (!method) {
-        Py_CLEAR(cursor);
-        goto error;
-    }
-
-    result = PyObject_CallObject(method, args);
+    result = pysqlite_cursor_executemany(cursor, args);
     if (!result) {
         Py_CLEAR(cursor);
     }
 
 error:
     Py_XDECREF(result);
-    Py_XDECREF(method);
 
     return cursor;
 }
@@ -1573,27 +1552,19 @@ PyObject* pysqlite_connection_executescript(pysqlite_Connection* self, PyObject*
 {
     PyObject* cursor = 0;
     PyObject* result = 0;
-    PyObject* method = 0;
 
-    cursor = _PyObject_CallMethodId((PyObject*)self, &PyId_cursor, NULL);
+    cursor = pysqlite_connection_cursor(self, NULL);
     if (!cursor) {
         goto error;
     }
 
-    method = PyObject_GetAttrString(cursor, "executescript");
-    if (!method) {
-        Py_CLEAR(cursor);
-        goto error;
-    }
-
-    result = PyObject_CallObject(method, args);
+    result = pysqlite_cursor_executescript(cursor, args);
     if (!result) {
         Py_CLEAR(cursor);
     }
 
 error:
     Py_XDECREF(result);
-    Py_XDECREF(method);
 
     return cursor;
 }
@@ -1808,7 +1779,6 @@ pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
     PyObject* name;
     PyObject* retval;
     Py_ssize_t i, len;
-    _Py_IDENTIFIER(upper);
     const char *uppercase_name_str;
     int rc;
     unsigned int kind;
@@ -1823,8 +1793,8 @@ pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
         goto finally;
     }
 
-    uppercase_name = _PyObject_CallMethodIdObjArgs((PyObject *)&PyUnicode_Type,
-                                                   &PyId_upper, name, NULL);
+    uppercase_name = PyObject_CallMethodObjArgs((PyObject *)&PyUnicode_Type,
+                                                "upper", name, NULL);
     if (!uppercase_name) {
         goto finally;
     }

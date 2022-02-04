@@ -100,13 +100,12 @@ _pysqlite_get_converter(const char *keystr, Py_ssize_t keylen)
     PyObject *key;
     PyObject *upcase_key;
     PyObject *retval;
-    _Py_IDENTIFIER(upper);
 
     key = PyUnicode_FromStringAndSize(keystr, keylen);
     if (!key) {
         return NULL;
     }
-    upcase_key = _PyObject_CallMethodId(key, &PyId_upper, NULL);
+    upcase_key = PyObject_CallMethod(key, "upper", NULL);
     Py_DECREF(key);
     if (!upcase_key) {
         return NULL;
@@ -621,7 +620,7 @@ PyObject* pysqlite_cursor_executemany(pysqlite_Cursor* self, PyObject* args)
     return _pysqlite_query_execute(self, 1, args);
 }
 
-static PyObject *
+PyObject *
 pysqlite_cursor_executescript(pysqlite_Cursor* self, PyObject* args)
 {
     PyObject* script_obj;
