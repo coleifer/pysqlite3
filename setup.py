@@ -12,7 +12,7 @@ from setuptools import Extension
 # If you need to change anything, it should be enough to change setup.cfg.
 
 PACKAGE_NAME = 'pysqlite3'
-VERSION = '0.4.6-2'
+VERSION = '0.4.7'
 
 # define sqlite sources
 sources = [os.path.join('src', source)
@@ -87,6 +87,7 @@ class AmalgationLibSqliteBuilder(build_ext):
             'ENABLE_FTS5',
             'ENABLE_JSON1',
             'ENABLE_LOAD_EXTENSION',
+            'ENABLE_MATH_FUNCTIONS',
             'ENABLE_RTREE',
             'ENABLE_STAT4',
             'ENABLE_UPDATE_DELETE_LIMIT',
