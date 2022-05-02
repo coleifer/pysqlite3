@@ -16,7 +16,7 @@ jobs:
       - name: package deps
         run: |
           sudo apt-get install libsqlite3-dev
-          python setup.py build_ext -i
+          python setup.py build_dynamic -i
       - name: runtests
         env:
           PYTHONPATH: '.:$PYTHONPATH'
