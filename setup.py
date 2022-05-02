@@ -2,17 +2,23 @@
 # setup.py: the distutils script
 #
 import os
-import setuptools
+import shutil
 import sys
-
 from distutils import log
 from distutils.command.build_ext import build_ext
+from enum import Enum, auto
+from html.parser import HTMLParser
+from tempfile import NamedTemporaryFile
+from urllib.request import urlopen
+from zipfile import ZipFile
+
+import setuptools
 from setuptools import Extension
 
 # If you need to change anything, it should be enough to change setup.cfg.
 
 PACKAGE_NAME = 'pysqlite3'
-VERSION = '0.4.7'
+SQLITE_VERSION = '3.38.3'
 
 # define sqlite sources
 sources = [os.path.join('src', source)
@@ -37,6 +43,37 @@ def quote_argument(arg):
 define_macros = [('MODULE_NAME', quote_argument(PACKAGE_NAME + '.dbapi2'))]
 
 
+class SqliteVersionParser(HTMLParser):
+
+    class State(Enum):
+        NOTHING = auto()
+        BEFORE_VERSION_DATE = auto()
+        BEFORE_VERSION_STRING = auto()
+
+    def __init__(self, *, convert_charrefs: bool = ...) -> None:
+        self.state = self.State.NOTHING
+        self.versions = {}
+        self.next_date = None
+        super().__init__(convert_charrefs=convert_charrefs)
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "a" and "src/timeline?c" in attrs.get("href"):
+            self.state = self.State.BEFORE_VERSION_DATE
+        elif tag == "td" and "data-sortkey" in attrs:
+            self.state = self.State.BEFORE_VERSION_STRING
+
+    def handle_data(self, data):
+        if self.state == self.State.BEFORE_VERSION_DATE:
+            self.next_date = data
+        elif self.state == self.State.BEFORE_VERSION_STRING:
+            assert self.next_date is not None, "Malformed HTML"
+            self.versions[data] = self.next_date
+            self.next_date = None
+
+    def handle_endtag(self, tag):
+        self.state = self.State.NOTHING
+
+
 class SystemLibSqliteBuilder(build_ext):
     description = "Builds a C extension linking against libsqlite3 library"
 
@@ -54,7 +91,7 @@ class SystemLibSqliteBuilder(build_ext):
 class AmalgationLibSqliteBuilder(build_ext):
     description = "Builds a C extension using a sqlite3 amalgamation"
 
-    amalgamation_root = "."
+    amalgamation_root = "build/sqlite3"
     amalgamation_header = os.path.join(amalgamation_root, 'sqlite3.h')
     amalgamation_source = os.path.join(amalgamation_root, 'sqlite3.c')
 
@@ -63,14 +100,47 @@ class AmalgationLibSqliteBuilder(build_ext):
                             'following files are present in the pysqlite3 '
                             'folder: sqlite3.h, sqlite3.c')
 
-    def check_amalgamation(self):
+    def check_amalgamation(self, downloaded=False):
         if not os.path.exists(self.amalgamation_root):
             os.mkdir(self.amalgamation_root)
 
         header_exists = os.path.exists(self.amalgamation_header)
         source_exists = os.path.exists(self.amalgamation_source)
         if not header_exists or not source_exists:
-            raise RuntimeError(self.amalgamation_message)
+            if not downloaded:
+                print("Reading version list from SQLite website")
+                # History Of SQLite Releases https://www.sqlite.org/chronology.html
+                parser = SqliteVersionParser()
+                with urlopen("https://www.sqlite.org/chronology.html") as f:
+                    parser.feed(f.read().decode("utf-8"))
+                assert SQLITE_VERSION in parser.versions, "Invalid SQLite version"
+
+                # For version 3.X.Y the filename encoding is 3XXYY00
+                v = [int(i) for i in SQLITE_VERSION.split('.')]
+                if len(v) == 3:
+                    v.append(0)
+                v = tuple(v)
+                sqlite_version_string = f"{v[0]}{v[1]:02d}{v[2]:02d}{v[3]:02d}"
+                release_year = parser.versions[SQLITE_VERSION][:4]
+                url = f"https://www.sqlite.org/{release_year}/sqlite-amalgamation-{sqlite_version_string}.zip"
+                with NamedTemporaryFile(suffix=".zip") as tmp:
+                    print("Downloading SQLite from", url)
+                    with urlopen(url) as f:
+                        shutil.copyfileobj(f, tmp)
+                    tmp.seek(0)
+                    with ZipFile(tmp) as zf:
+                        files = zf.namelist()
+                        
+                        sqlite_c = next(fn for fn in files if fn.endswith("sqlite3.c"))
+                        with zf.open(sqlite_c) as src, open(self.amalgamation_source, "wb") as dst:
+                            shutil.copyfileobj(src, dst)
+
+                        sqlite_h = next(fn for fn in files if fn.endswith("sqlite3.h"))
+                        with zf.open(sqlite_h) as src, open(self.amalgamation_header, "wb") as dst:
+                            shutil.copyfileobj(src, dst)
+                self.check_amalgamation(downloaded=True)
+            else:
+                raise RuntimeError(self.amalgamation_message)
 
     def build_extension(self, ext):
         log.info(self.description)
@@ -126,7 +196,6 @@ class AmalgationLibSqliteBuilder(build_ext):
 def get_setup_args():
     return dict(
         name=PACKAGE_NAME,
-        version=VERSION,
         description="DB-API 2.0 interface for Sqlite 3.x",
         long_description='',
         author="Charles Leifer",
@@ -153,17 +222,10 @@ def get_setup_args():
             "Topic :: Database :: Database Engines/Servers",
             "Topic :: Software Development :: Libraries :: Python Modules"],
         cmdclass={
-            "build_static": AmalgationLibSqliteBuilder,
-            "build_ext": SystemLibSqliteBuilder
+            "build_ext": AmalgationLibSqliteBuilder,
+            "build_dynamic": SystemLibSqliteBuilder
         }
     )
 
 
-def main():
-    try:
-        setuptools.setup(**get_setup_args())
-    except BaseException as ex:
-        log.info(str(ex))
-
-if __name__ == "__main__":
-    main()
+setuptools.setup(**get_setup_args())
