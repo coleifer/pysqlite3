@@ -159,11 +159,5 @@ def get_setup_args():
     )
 
 
-def main():
-    try:
-        setuptools.setup(**get_setup_args())
-    except BaseException as ex:
-        log.info(str(ex))
-
 if __name__ == "__main__":
-    main()
+    setuptools.setup(**get_setup_args())
