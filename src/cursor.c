@@ -219,6 +219,15 @@ _pysqlite_build_column_name(pysqlite_Cursor *self, const char *colname)
     return PyUnicode_FromStringAndSize(colname, len);
 }
 
+static PyObject *
+_pysqlite_build_column_decltype(pysqlite_Cursor *self, const char *decltype)
+{
+    if (!decltype) {
+        Py_RETURN_NONE;
+    }
+    return PyUnicode_FromStringAndSize(decltype, strlen(decltype));
+}
+
 /*
  * Returns a row from the currently active SQLite statement
  *
@@ -378,6 +387,7 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
     PyObject* result;
     int numcols;
     PyObject* column_name;
+    PyObject* column_decltype;
     PyObject* second_argument = NULL;
     sqlite_int64 lastrowid;
 
@@ -541,6 +551,7 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
             }
             for (i = 0; i < numcols; i++) {
                 const char *colname;
+                const char *decltype;
                 colname = sqlite3_column_name(self->statement->st, i);
                 if (colname == NULL) {
                     PyErr_NoMemory();
@@ -550,10 +561,18 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
                 if (!column_name) {
                     goto error;
                 }
-                PyObject *descriptor = PyTuple_Pack(7, column_name,
+                decltype = sqlite3_column_decltype(self->statement->st, i);
+                column_decltype = _pysqlite_build_column_decltype(self, decltype);
+                if (!column_decltype) {
+                    Py_DECREF(column_name);
+                    goto error;
+                }
+
+                PyObject *descriptor = PyTuple_Pack(7, column_name, column_decltype,
                                                     Py_None, Py_None, Py_None,
-                                                    Py_None, Py_None, Py_None);
+                                                    Py_None, Py_None);
                 Py_DECREF(column_name);
+                Py_DECREF(column_decltype);
                 if (descriptor == NULL) {
                     goto error;
                 }

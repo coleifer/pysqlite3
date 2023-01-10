@@ -1017,6 +1017,32 @@ class ClosedCurTests(unittest.TestCase):
                 method(*params)
 
 
+class SqliteColumnTypeTests(unittest.TestCase):
+    def setUp(self):
+        self.cx = sqlite.connect(':memory:')
+        self.cx.execute('create table test(a text, b datetime)')
+        self.cx.execute('create view test_view as select * from test')
+
+    def CheckDeclTypes(self):
+        curs = self.cx.execute('select * from test')
+        self.assertEqual(curs.description, (
+            ('a', 'TEXT', None, None, None, None, None),
+            ('b', 'datetime', None, None, None, None, None),
+        ))
+
+        curs = self.cx.execute('select * from test_view')
+        self.assertEqual(curs.description, (
+            ('a', 'TEXT', None, None, None, None, None),
+            ('b', 'datetime', None, None, None, None, None),
+        ))
+
+        # Expressions return NULL decltype, reported as None.
+        curs = self.cx.execute('select b + b as c from test_view')
+        self.assertEqual(curs.description, (
+            ('c', None, None, None, None, None, None),
+        ))
+
+
 class SqliteOnConflictTests(unittest.TestCase):
     """
     Tests for SQLite's "insert on conflict" feature.
@@ -1181,6 +1207,7 @@ def suite():
     ext_suite = unittest.makeSuite(ExtensionTests, "Check")
     closed_con_suite = unittest.makeSuite(ClosedConTests, "Check")
     closed_cur_suite = unittest.makeSuite(ClosedCurTests, "Check")
+    columntypes_suite = unittest.makeSuite(SqliteColumnTypeTests, "Check")
     on_conflict_suite = unittest.makeSuite(SqliteOnConflictTests, "Check")
     blob_suite = unittest.makeSuite(BlobTests, "Check")
     closed_blob_suite = unittest.makeSuite(ClosedBlobTests, "Check")
@@ -1188,7 +1215,7 @@ def suite():
     return unittest.TestSuite((
         module_suite, connection_suite, cursor_suite, thread_suite,
         constructor_suite, ext_suite, closed_con_suite, closed_cur_suite,
-        on_conflict_suite, blob_suite, closed_blob_suite,
+        columntypes_suite, on_conflict_suite, blob_suite, closed_blob_suite,
         blob_context_manager_suite,
     ))
 
