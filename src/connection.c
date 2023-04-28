@@ -1192,6 +1192,7 @@ static int _progress_handler(void* user_arg)
     return rc;
 }
 
+#if SQLITE_VERSION_NUMBER < 3140002
 static void _trace_callback(void* user_arg, const char* statement_string)
 {
     PyObject *py_statement = NULL;
@@ -1219,8 +1220,10 @@ static void _trace_callback(void* user_arg, const char* statement_string)
 
     PyGILState_Release(gilstate);
 }
-
-static int _trace_callback_v2(unsigned int sqlite_trace_type, void* user_arg, sqlite3_stmt* p, const char* zTrace)
+#else
+static int _trace_callback(unsigned int Py_UNUSED(sqlite_trace_type),
+                           void* user_arg, sqlite3_stmt* statement,
+                           const char* zTrace)
 {
     PyObject *py_statement = NULL;
     PyObject *ret = NULL;
@@ -1232,14 +1235,14 @@ static int _trace_callback_v2(unsigned int sqlite_trace_type, void* user_arg, sq
     // The callback can compute the same text that would have been returned by
     // the legacy sqlite3_trace() interface by using the X argument when X
     // begins with "--" and invoking sqlite3_expanded_sql(P) otherwise.
-    char *statement_string = zTrace;
+    char *statement_string = (char *)zTrace;
     if (!(
         statement_string != NULL
         && strlen(statement_string) >= 2
         && statement_string[0] == '-'
         && statement_string[1] == '-'
     )) {
-        statement_string = sqlite3_expanded_sql(p);
+        statement_string = sqlite3_expanded_sql(statement);
     }
     // https://www.sqlite.org/capi3ref.html#sqlite3_expanded_sql
     // The sqlite3_expanded_sql() interface returns NULL if insufficient memory
@@ -1283,6 +1286,7 @@ error:
     // return zero to ensure future compatibility.
     return 0;
 }
+#endif
 
 static PyObject* pysqlite_connection_set_authorizer(pysqlite_Connection* self, PyObject* args, PyObject* kwargs)
 {
