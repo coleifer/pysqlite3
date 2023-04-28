@@ -567,7 +567,7 @@ PyMODINIT_FUNC PyInit__sqlite3(void)
     converters_init(dict);
 
 error:
-    if (PyErr_Occurred())
+    if (PyErr_Occurred() || sqlite3_initialize() != SQLITE_OK)
     {
         PyErr_SetString(PyExc_ImportError, MODULE_NAME ": init failed");
         Py_XDECREF(module);
