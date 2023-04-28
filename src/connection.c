@@ -1192,7 +1192,7 @@ static int _progress_handler(void* user_arg)
     return rc;
 }
 
-#if SQLITE_VERSION_NUMBER < 3140002
+#if SQLITE_VERSION_NUMBER < 3014002
 static void _trace_callback(void* user_arg, const char* statement_string)
 {
     PyObject *py_statement = NULL;
@@ -1222,8 +1222,7 @@ static void _trace_callback(void* user_arg, const char* statement_string)
 }
 #else
 static int _trace_callback(unsigned int Py_UNUSED(sqlite_trace_type),
-                           void* user_arg, sqlite3_stmt* statement,
-                           const char* zTrace)
+                           void* user_arg, void* statement, void* zTrace)
 {
     PyObject *py_statement = NULL;
     PyObject *ret = NULL;
@@ -1242,7 +1241,7 @@ static int _trace_callback(unsigned int Py_UNUSED(sqlite_trace_type),
         && statement_string[0] == '-'
         && statement_string[1] == '-'
     )) {
-        statement_string = sqlite3_expanded_sql(statement);
+        statement_string = sqlite3_expanded_sql((sqlite3_stmt *)statement);
     }
     // https://www.sqlite.org/capi3ref.html#sqlite3_expanded_sql
     // The sqlite3_expanded_sql() interface returns NULL if insufficient memory
@@ -1368,7 +1367,7 @@ static PyObject* pysqlite_connection_set_trace_callback(pysqlite_Connection* sel
 
     if (trace_callback == Py_None) {
         /* None clears the trace callback previously set */
-#if SQLITE_VERSION_NUMBER < 3140002
+#if SQLITE_VERSION_NUMBER < 3014002
         sqlite3_trace(self->db, 0, (void*)0);
         Py_XSETREF(self->function_pinboard_trace_callback, NULL);
     } else {
