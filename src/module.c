@@ -438,6 +438,12 @@ PyMODINIT_FUNC PyInit__sqlite3(void)
     PyObject *tmp_obj;
     int i;
 
+    int rc = sqlite3_initialize();
+    if (rc != SQLITE_OK) {
+        PyErr_SetString(PyExc_ImportError, sqlite3_errstr(rc));
+        return NULL;
+    }
+
     module = PyModule_Create(&_sqlite3module);
 
     if (!module ||
