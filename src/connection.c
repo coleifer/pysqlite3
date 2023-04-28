@@ -1192,7 +1192,7 @@ static int _progress_handler(void* user_arg)
     return rc;
 }
 
-static void _trace_callback(void* user_arg, const char* statement_string)
+static int _trace_callback(unsigned int sqlite_trace_type, void* user_arg, sqlite3_stmt* p, const char* zTrace)
 {
     PyObject *py_statement = NULL;
     PyObject *ret = NULL;
@@ -1200,6 +1200,27 @@ static void _trace_callback(void* user_arg, const char* statement_string)
     PyGILState_STATE gilstate;
 
     gilstate = PyGILState_Ensure();
+    // https://www.sqlite.org/capi3ref.html#SQLITE_TRACE
+    // The callback can compute the same text that would have been returned by
+    // the legacy sqlite3_trace() interface by using the X argument when X
+    // begins with "--" and invoking sqlite3_expanded_sql(P) otherwise.
+    char *statement_string = zTrace;
+    if (!(
+        statement_string != NULL
+        && strlen(statement_string) >= 2
+        && statement_string[0] == '-'
+        && statement_string[1] == '-'
+    )) {
+        statement_string = sqlite3_expanded_sql(p);
+    }
+    // https://www.sqlite.org/capi3ref.html#sqlite3_expanded_sql
+    // The sqlite3_expanded_sql() interface returns NULL if insufficient memory
+    // is available to hold the result, or if the result would exceed the the
+    // maximum string length determined by the SQLITE_LIMIT_LENGTH.
+    if (statement_string == NULL) {
+        (void)PyErr_NoMemory();
+        goto error;
+    }
     py_statement = PyUnicode_DecodeUTF8(statement_string,
             strlen(statement_string), "replace");
     if (py_statement) {
@@ -1217,7 +1238,20 @@ static void _trace_callback(void* user_arg, const char* statement_string)
         }
     }
 
+error:
+    // https://www.sqlite.org/capi3ref.html#sqlite3_expanded_sql
+    // The string returned by sqlite3_expanded_sql(P), on the other hand, is
+    // obtained from sqlite3_malloc() and must be freed by the application by
+    // passing it to sqlite3_free().
+    if (statement_string != zTrace) {
+        sqlite3_free(statement_string);
+    }
     PyGILState_Release(gilstate);
+    // https://www.sqlite.org/capi3ref.html#sqlite3_trace_v2
+    // The integer return value from the callback is currently ignored, though
+    // this may change in future releases. Callback implementations should
+    // return zero to ensure future compatibility.
+    return 0;
 }
 
 static PyObject* pysqlite_connection_set_authorizer(pysqlite_Connection* self, PyObject* args, PyObject* kwargs)
@@ -1300,10 +1334,13 @@ static PyObject* pysqlite_connection_set_trace_callback(pysqlite_Connection* sel
 
     if (trace_callback == Py_None) {
         /* None clears the trace callback previously set */
-        sqlite3_trace(self->db, 0, (void*)0);
+        // https://www.sqlite.org/capi3ref.html#sqlite3_trace_v2
+        // If the X callback is NULL or if the M mask is zero, then tracing is
+        // disabled.
+        sqlite3_trace_v2(self->db, SQLITE_TRACE_STMT, NULL, (void*)0);
         Py_XSETREF(self->function_pinboard_trace_callback, NULL);
     } else {
-        sqlite3_trace(self->db, _trace_callback, trace_callback);
+        sqlite3_trace_v2(self->db, SQLITE_TRACE_STMT, _trace_callback, trace_callback);
         Py_INCREF(trace_callback);
         Py_XSETREF(self->function_pinboard_trace_callback, trace_callback);
     }
