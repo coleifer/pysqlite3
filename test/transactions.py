@@ -21,7 +21,7 @@
 #    misrepresented as being the original software.
 # 3. This notice may not be removed or altered from any source distribution.
 
-import os, unittest
+import glob, os, unittest
 from pysqlite3 import dbapi2 as sqlite
 
 def get_db_path():
@@ -212,6 +212,14 @@ class DMLStatementDetectionTestCase(unittest.TestCase):
 
     Use sqlite3_stmt_readonly to determine if the statement is DML or not.
     """
+    def setUp(self):
+        for f in glob.glob(get_db_path() + '*'):
+            try:
+                os.unlink(f)
+            except OSError:
+                pass
+    tearDown = setUp
+
     @unittest.skipIf(sqlite.sqlite_version_info < (3, 8, 3),
                      'needs sqlite 3.8.3 or newer')
     def test_dml_detection_cte(self):
@@ -264,8 +272,10 @@ class DMLStatementDetectionTestCase(unittest.TestCase):
         self.assertFalse(conn.in_transaction)
 
     def test_dml_detection_vacuum(self):
-        conn = sqlite.connect(':memory:')
-        conn.execute('vacuum')
+        conn = sqlite.connect(get_db_path())
+        conn.execute('pragma journal_mode=\'wal\'')
+        jmode, = conn.execute('pragma journal_mode').fetchone()
+        self.assertEqual(jmode, 'wal')
         self.assertFalse(conn.in_transaction)
 
 
