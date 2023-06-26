@@ -104,7 +104,8 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
                             PyOS_strnicmp(p, "alter", 5) &&
                             PyOS_strnicmp(p, "analyze", 7) &&
                             PyOS_strnicmp(p, "reindex", 7) &&
-                            PyOS_strnicmp(p, "vacuum", 6));
+                            PyOS_strnicmp(p, "vacuum", 6) &&
+                            PyOS_strnicmp(p, "pragma", 6));
             break;
         }
     }
