@@ -12,7 +12,7 @@ from setuptools import Extension
 # If you need to change anything, it should be enough to change setup.cfg.
 
 PACKAGE_NAME = 'pysqlite3'
-VERSION = '0.5.0'
+VERSION = '0.5.1'
 
 # define sqlite sources
 sources = [os.path.join('src', source)
