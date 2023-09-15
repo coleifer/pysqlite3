@@ -1249,7 +1249,7 @@ static void _trace_callback(void* user_arg, const char* statement_string)
     PyObject *ret = NULL;
 
     PyGILState_STATE gilstate = PyGILState_Ensure();
-    py_statement = PyUnicode_FromSTring(statement_string);
+    py_statement = PyUnicode_FromString(statement_string);
     if (py_statement) {
         ret = PyObject_CallFunctionObjArgs((PyObject*)user_arg, py_statement, NULL);
         Py_DECREF(py_statement);
