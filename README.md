@@ -66,3 +66,22 @@ of SQLite.
 ```
 $ pip install pysqlite3-binary
 ```
+
+Replacing the built-in sqlite module
+------------------------------------
+
+On older distributions it's sometimes not possible to update sqlite, which means
+you are stuck with an older version. To preserve code compatibility it is possible
+to replace python's `sqlite3` module entirely:
+
+```python
+# Replace the sqlite3 module with pysqlite3 if it's too old
+import sqlite3
+if sqlite3.sqlite_version_info[0] < 3 or sqlite3.sqlite_version_info[1] < 24:
+    import sys
+    import pysqlite3  # pip install pysqlite3-binary
+    sys.modules["sqlite3"] = pysqlite3
+```
+
+Note that you should place this code at the very top of your main script, to
+avoid other imports caching the original `sqlite3` module instance.
