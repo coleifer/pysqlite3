@@ -52,6 +52,10 @@
 #define HAVE_WINDOW_FUNCTION
 #endif
 
+#if SQLITE_HAS_CODEC
+#define HAVE_ENCRYPTION
+#endif
+
 _Py_IDENTIFIER(cursor);
 
 static const char * const begin_statements[] = {
@@ -1982,6 +1986,52 @@ pysqlite_connection_exit(pysqlite_Connection* self, PyObject* args)
     Py_RETURN_FALSE;
 }
 
+#ifdef HAVE_ENCRYPTION
+PyObject* pysqlite_connection_key(pysqlite_Connection *self, PyObject *args)
+{
+    Py_buffer key_buffer;
+    int rc;
+
+    if (!pysqlite_check_connection(self)) {
+        return NULL;
+    }
+    if (!PyArg_ParseTuple(args, "s*", &key_buffer)) {
+        return NULL;
+    }
+
+    rc = sqlite3_key(self->db, key_buffer.buf, key_buffer.len);
+    PyBuffer_Release(&key_buffer);
+
+    if (rc != SQLITE_OK) {
+        PyErr_SetString(pysqlite_OperationalError, sqlite3_errstr(rc));
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+PyObject* pysqlite_connection_rekey(pysqlite_Connection *self, PyObject *args)
+{
+    Py_buffer key_buffer;
+    int rc;
+
+    if (!pysqlite_check_connection(self)) {
+        return NULL;
+    }
+    if (!PyArg_ParseTuple(args, "s*", &key_buffer)) {
+        return NULL;
+    }
+
+    rc = sqlite3_rekey(self->db, key_buffer.buf, key_buffer.len);
+    PyBuffer_Release(&key_buffer);
+
+    if (rc != SQLITE_OK) {
+        PyErr_SetString(pysqlite_OperationalError, sqlite3_errstr(rc));
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+#endif
+
 static const char connection_doc[] =
 PyDoc_STR("SQLite database connection object.");
 
@@ -2033,6 +2083,12 @@ static PyMethodDef connection_methods[] = {
         PyDoc_STR("Creates a collation function. Non-standard.")},
     {"interrupt", (PyCFunction)pysqlite_connection_interrupt, METH_NOARGS,
         PyDoc_STR("Abort any pending database operation. Non-standard.")},
+#ifdef HAVE_ENCRYPTION
+    {"set_key", (PyCFunction)(void(*)(void))pysqlite_connection_key, METH_VARARGS,
+        PyDoc_STR("Set encryption key for database. Non-standard.")},
+    {"reset_key", (PyCFunction)(void(*)(void))pysqlite_connection_rekey, METH_VARARGS,
+        PyDoc_STR("Set encryption key for database. Non-standard.")},
+#endif
     #ifdef HAVE_BACKUP_API
     {"backup", (PyCFunction)(void(*)(void))pysqlite_connection_backup, METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Makes a backup of the database. Non-standard.")},
