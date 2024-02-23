@@ -24,7 +24,14 @@ dependencies.
 Building with System SQLite
 ---------------------------
 
-To build `pysqlite3` linked against the system SQLite, run:
+If you intend to use the system SQLite, you can install with:
+
+```
+$ pip install pysqlite3
+```
+
+Alternatively you can clone or download the repo and use `setup.py` to
+build `pysqlite3` linked against the system SQLite:
 
 ```
 $ python setup.py build
@@ -61,7 +68,7 @@ Using the binary package
 
 A binary package (wheel) is available for linux with a completely
 self-contained  `pysqlite3`, statically-linked against the most recent release
-of SQLite.
+of SQLite with many features/extensions enabled.
 
 ```
 $ pip install pysqlite3-binary
