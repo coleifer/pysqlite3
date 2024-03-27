@@ -16,6 +16,7 @@ jobs:
       - name: package deps
         run: |
           sudo apt-get install libsqlite3-dev
+          pip install setuptools
           python setup.py build_ext -i
       - name: runtests
         env:
