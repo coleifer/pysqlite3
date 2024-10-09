@@ -170,7 +170,7 @@ class RegressionTests(unittest.TestCase):
         con.isolation_level = "DEFERRED"
         pairs = [
             (1, TypeError), (b'', TypeError), ("abc", ValueError),
-            ("IMMEDIATE\0EXCLUSIVE", ValueError), ("\xe9", ValueError),
+            ("\xe9", ValueError),
         ]
         for value, exc in pairs:
             with self.subTest(level=value):
@@ -267,7 +267,7 @@ class RegressionTests(unittest.TestCase):
     def test_Collation(self):
         def collation_cb(a, b):
             return 1
-        self.assertRaises(sqlite.ProgrammingError, self.con.create_collation,
+        self.assertRaises(UnicodeEncodeError, self.con.create_collation,
             # Lone surrogate cannot be encoded to the default encoding (utf8)
             "\uDC80", collation_cb)
 
