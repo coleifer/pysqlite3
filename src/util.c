@@ -157,9 +157,15 @@ _pysqlite_long_as_int64(PyObject * py_val)
     }
     else if (sizeof(value) < sizeof(sqlite_int64)) {
         sqlite_int64 int64val;
+#if PY_VERSION_HEX < 0x030D0000
         if (_PyLong_AsByteArray((PyLongObject *)py_val,
                                 (unsigned char *)&int64val, sizeof(int64val),
                                 IS_LITTLE_ENDIAN, 1 /* signed */) >= 0) {
+#else
+        if (_PyLong_AsByteArray((PyLongObject *)py_val,
+                                (unsigned char *)&int64val, sizeof(int64val),
+                                IS_LITTLE_ENDIAN, 1 /* signed */, 1) >= 0) {
+#endif
             return int64val;
         }
     }

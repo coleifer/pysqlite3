@@ -536,7 +536,7 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
         }
 
         if (pysqlite_build_row_cast_map(self) != 0) {
-            _PyErr_FormatFromCause(pysqlite_OperationalError, "Error while building row_cast_map");
+            PyErr_Format(pysqlite_OperationalError, "Error while building row_cast_map");
             goto error;
         }
 

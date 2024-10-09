@@ -24,13 +24,15 @@ int pysqlite_blob_init(pysqlite_Blob *self, pysqlite_Connection* connection,
 static void remove_blob_from_connection_blob_list(pysqlite_Blob *self)
 {
     Py_ssize_t i;
-    PyObject *item;
+    PyObject *item, *ref;
 
     for (i = 0; i < PyList_GET_SIZE(self->connection->blobs); i++) {
         item = PyList_GET_ITEM(self->connection->blobs, i);
-        if (PyWeakref_GetObject(item) == (PyObject *)self) {
-            PyList_SetSlice(self->connection->blobs, i, i+1, NULL);
-            break;
+        if (PyWeakref_GetRef(item, &ref) == 1) {
+            if (ref == (PyObject *)self) {
+                PyList_SetSlice(self->connection->blobs, i, i+1, NULL);
+                break;
+            }
         }
     }
 }

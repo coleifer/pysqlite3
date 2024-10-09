@@ -39,4 +39,46 @@ int _pysqlite_seterror(sqlite3* db);
 
 sqlite_int64 _pysqlite_long_as_int64(PyObject * value);
 
+#ifndef _Py_CAST
+#  define _Py_CAST(type, expr) ((type)(expr))
+#endif
+
+// Cast argument to PyObject* type.
+#ifndef _PyObject_CAST
+#  define _PyObject_CAST(op) _Py_CAST(PyObject*, op)
+#endif
+
+#if PY_VERSION_HEX < 0x030A00A3 && !defined(Py_NewRef)
+static inline PyObject* _Py_NewRef(PyObject *obj)
+{
+    Py_INCREF(obj);
+    return obj;
+}
+#define Py_NewRef(obj) _Py_NewRef(_PyObject_CAST(obj))
+#endif
+
+#if PY_VERSION_HEX < 0x030D0000
+static inline int PyWeakref_GetRef(PyObject *ref, PyObject **pobj)
+{
+    PyObject *obj;
+    if (ref != NULL && !PyWeakref_Check(ref)) {
+        *pobj = NULL;
+        PyErr_SetString(PyExc_TypeError, "expected a weakref");
+        return -1;
+    }
+    obj = PyWeakref_GetObject(ref);
+    if (obj == NULL) {
+        // SystemError if ref is NULL
+        *pobj = NULL;
+        return -1;
+    }
+    if (obj == Py_None) {
+        *pobj = NULL;
+        return 0;
+    }
+    *pobj = Py_NewRef(obj);
+    return (*pobj != NULL);
+}
+#endif
+
 #endif

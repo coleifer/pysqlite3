@@ -56,6 +56,10 @@
 #define HAVE_ENCRYPTION
 #endif
 
+#if PY_VERSION_HEX < 0x030D0000
+    #define PyLong_AsInt _PyLong_AsInt
+#endif
+
 _Py_IDENTIFIER(cursor);
 
 static const char * const begin_statements[] = {
@@ -229,9 +233,7 @@ void pysqlite_do_all_statements(pysqlite_Connection* self, int action, int reset
 
     for (i = 0; i < PyList_Size(self->statements); i++) {
         weakref = PyList_GetItem(self->statements, i);
-        statement = PyWeakref_GetObject(weakref);
-        if (statement != Py_None) {
-            Py_INCREF(statement);
+        if (PyWeakref_GetRef(weakref, &statement) == 1) {
             if (action == ACTION_RESET) {
                 (void)pysqlite_statement_reset((pysqlite_Statement*)statement);
             } else {
@@ -244,9 +246,9 @@ void pysqlite_do_all_statements(pysqlite_Connection* self, int action, int reset
     if (reset_cursors) {
         for (i = 0; i < PyList_Size(self->cursors); i++) {
             weakref = PyList_GetItem(self->cursors, i);
-            cursor = (pysqlite_Cursor*)PyWeakref_GetObject(weakref);
-            if ((PyObject*)cursor != Py_None) {
+            if (PyWeakref_GetRef(weakref, (PyObject**)&cursor) == 1) {
                 cursor->reset = 1;
+                Py_DECREF(cursor);
             }
         }
     }
@@ -412,9 +414,9 @@ static void pysqlite_close_all_blobs(pysqlite_Connection *self)
 
     for (i = 0; i < PyList_GET_SIZE(self->blobs); i++) {
         weakref = PyList_GET_ITEM(self->blobs, i);
-        blob = PyWeakref_GetObject(weakref);
-        if (blob != Py_None) {
+        if (PyWeakref_GetRef(weakref, &blob) == 1) {
             pysqlite_blob_close((pysqlite_Blob*)blob);
+            Py_DECREF(blob);
         }
     }
 }
@@ -936,6 +938,7 @@ static void _pysqlite_drop_unused_statement_references(pysqlite_Connection* self
 {
     PyObject* new_list;
     PyObject* weakref;
+    PyObject* ref;
     int i;
 
     /* we only need to do this once in a while */
@@ -952,7 +955,8 @@ static void _pysqlite_drop_unused_statement_references(pysqlite_Connection* self
 
     for (i = 0; i < PyList_Size(self->statements); i++) {
         weakref = PyList_GetItem(self->statements, i);
-        if (PyWeakref_GetObject(weakref) != Py_None) {
+        if (PyWeakref_GetRef(weakref, &ref) == 1) {
+            Py_DECREF(ref);
             if (PyList_Append(new_list, weakref) != 0) {
                 Py_DECREF(new_list);
                 return;
@@ -967,6 +971,7 @@ static void _pysqlite_drop_unused_cursor_references(pysqlite_Connection* self)
 {
     PyObject* new_list;
     PyObject* weakref;
+    PyObject* ref;
     int i;
 
     /* we only need to do this once in a while */
@@ -983,7 +988,8 @@ static void _pysqlite_drop_unused_cursor_references(pysqlite_Connection* self)
 
     for (i = 0; i < PyList_Size(self->cursors); i++) {
         weakref = PyList_GetItem(self->cursors, i);
-        if (PyWeakref_GetObject(weakref) != Py_None) {
+        if (PyWeakref_GetRef(weakref, &ref) == 1) {
+            Py_DECREF(ref);
             if (PyList_Append(new_list, weakref) != 0) {
                 Py_DECREF(new_list);
                 return;
@@ -1154,7 +1160,7 @@ static int _authorizer_callback(void* user_arg, int action, const char* arg1, co
     }
     else {
         if (PyLong_Check(ret)) {
-            rc = _PyLong_AsInt(ret);
+            rc = PyLong_AsInt(ret);
             if (rc == -1 && PyErr_Occurred()) {
                 if (_pysqlite_enable_callback_tracebacks)
                     PyErr_Print();
@@ -1478,8 +1484,6 @@ pysqlite_connection_set_isolation_level(pysqlite_Connection* self, PyObject* iso
         self->begin_statement = NULL;
     } else {
         const char * const *candidate;
-        PyObject *uppercase_level;
-        _Py_IDENTIFIER(upper);
 
         if (!PyUnicode_Check(isolation_level)) {
             PyErr_Format(PyExc_TypeError,
@@ -1488,17 +1492,14 @@ pysqlite_connection_set_isolation_level(pysqlite_Connection* self, PyObject* iso
             return -1;
         }
 
-        uppercase_level = _PyObject_CallMethodIdObjArgs(
-                        (PyObject *)&PyUnicode_Type, &PyId_upper,
-                        isolation_level, NULL);
-        if (!uppercase_level) {
+        const char *level = PyUnicode_AsUTF8(isolation_level);
+        if (level == NULL) {
             return -1;
         }
         for (candidate = begin_statements; *candidate; candidate++) {
-            if (_PyUnicode_EqualToASCIIString(uppercase_level, *candidate + 6))
+            if (sqlite3_stricmp(level, *candidate + 6) == 0)
                 break;
         }
-        Py_DECREF(uppercase_level);
         if (!*candidate) {
             PyErr_SetString(PyExc_ValueError,
                             "invalid value for isolation_level");
@@ -1522,9 +1523,6 @@ PyObject* pysqlite_connection_call(pysqlite_Connection* self, PyObject* args, Py
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
         return NULL;
     }
-
-    if (!_PyArg_NoKeywords(MODULE_NAME ".Connection", kwargs))
-        return NULL;
 
     if (!PyArg_ParseTuple(args, "U", &sql))
         return NULL;
@@ -1742,33 +1740,16 @@ pysqlite_connection_backup(pysqlite_Connection *self, PyObject *args, PyObject *
     const char *name = "main";
     int rc;
     int callback_error = 0;
-    PyObject *sleep_obj = NULL;
-    int sleep_ms = 250;
+    double sleep_s = 0.25;
+    int sleep_ms = 0;
     sqlite3 *bck_conn;
     sqlite3_backup *bck_handle;
     static char *keywords[] = {"target", "pages", "progress", "name", "sleep", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|$iOsO:backup", keywords,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|$iOsd:backup", keywords,
                                      &pysqlite_ConnectionType, &target,
-                                     &pages, &progress, &name, &sleep_obj)) {
+                                     &pages, &progress, &name, &sleep_s)) {
         return NULL;
-    }
-
-    // XXX: We use _PyTime_ROUND_CEILING to support 3.6.x, but it should
-    // use _PyTime_ROUND_TIMEOUT instead.
-    if (sleep_obj != NULL) {
-        _PyTime_t sleep_secs;
-        if (_PyTime_FromSecondsObject(&sleep_secs, sleep_obj,
-                                      _PyTime_ROUND_CEILING)) {
-            return NULL;
-        }
-        _PyTime_t ms = _PyTime_AsMilliseconds(sleep_secs,
-                                              _PyTime_ROUND_CEILING);
-        if (ms < INT_MIN || ms > INT_MAX) {
-            PyErr_SetString(PyExc_OverflowError, "sleep is too large");
-            return NULL;
-        }
-        sleep_ms = (int)ms;
     }
 
     if (!pysqlite_check_connection((pysqlite_Connection *)target)) {
@@ -1779,6 +1760,11 @@ pysqlite_connection_backup(pysqlite_Connection *self, PyObject *args, PyObject *
         PyErr_SetString(PyExc_ValueError, "target cannot be the same connection instance");
         return NULL;
     }
+    if (sleep_s < 0) {
+        PyErr_SetString(PyExc_ValueError, "sleep must be greater-than or equal to zero");
+        return NULL;
+    }
+    sleep_ms = (int)(sleep_s * 1000.0);
 
 #if SQLITE_VERSION_NUMBER < 3008008
     /* Since 3.8.8 this is already done, per commit
@@ -1865,15 +1851,10 @@ static PyObject *
 pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
 {
     PyObject* callable;
-    PyObject* uppercase_name = 0;
-    PyObject* name;
+    PyObject* name = NULL;
     PyObject* retval;
-    Py_ssize_t i, len;
-    _Py_IDENTIFIER(upper);
-    const char *uppercase_name_str;
+    const char *name_str;
     int rc;
-    unsigned int kind;
-    const void *data;
 
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
         goto finally;
@@ -1884,32 +1865,8 @@ pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
         goto finally;
     }
 
-    uppercase_name = _PyObject_CallMethodIdObjArgs((PyObject *)&PyUnicode_Type,
-                                                   &PyId_upper, name, NULL);
-    if (!uppercase_name) {
-        goto finally;
-    }
-
-    if (PyUnicode_READY(uppercase_name))
-        goto finally;
-    len = PyUnicode_GET_LENGTH(uppercase_name);
-    kind = PyUnicode_KIND(uppercase_name);
-    data = PyUnicode_DATA(uppercase_name);
-    for (i=0; i<len; i++) {
-        Py_UCS4 ch = PyUnicode_READ(kind, data, i);
-        if ((ch >= '0' && ch <= '9')
-         || (ch >= 'A' && ch <= 'Z')
-         || (ch == '_'))
-        {
-            continue;
-        } else {
-            PyErr_SetString(pysqlite_ProgrammingError, "invalid character in collation name");
-            goto finally;
-        }
-    }
-
-    uppercase_name_str = PyUnicode_AsUTF8(uppercase_name);
-    if (!uppercase_name_str)
+    name_str = PyUnicode_AsUTF8(name);
+    if (!name_str)
         goto finally;
 
     if (callable != Py_None && !PyCallable_Check(callable)) {
@@ -1918,27 +1875,25 @@ pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
     }
 
     if (callable != Py_None) {
-        if (PyDict_SetItem(self->collations, uppercase_name, callable) == -1)
+        if (PyDict_SetItem(self->collations, name, callable) == -1)
             goto finally;
     } else {
-        if (PyDict_DelItem(self->collations, uppercase_name) == -1)
+        if (PyDict_DelItem(self->collations, name) == -1)
             goto finally;
     }
 
     rc = sqlite3_create_collation(self->db,
-                                  uppercase_name_str,
+                                  name_str,
                                   SQLITE_UTF8,
                                   (callable != Py_None) ? callable : NULL,
                                   (callable != Py_None) ? pysqlite_collation_callback : NULL);
     if (rc != SQLITE_OK) {
-        PyDict_DelItem(self->collations, uppercase_name);
+        PyDict_DelItem(self->collations, name);
         _pysqlite_seterror(self->db);
         goto finally;
     }
 
 finally:
-    Py_XDECREF(uppercase_name);
-
     if (PyErr_Occurred()) {
         retval = NULL;
     } else {
