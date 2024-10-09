@@ -52,7 +52,7 @@ class TransactionTests(unittest.TestCase):
         except OSError:
             pass
 
-    def CheckDMLDoesNotAutoCommitBefore(self):
+    def test_DMLDoesNotAutoCommitBefore(self):
         self.cur1.execute("create table test(i)")
         self.cur1.execute("insert into test(i) values (5)")
         self.cur1.execute("create table test2(j)")
@@ -60,14 +60,14 @@ class TransactionTests(unittest.TestCase):
         res = self.cur2.fetchall()
         self.assertEqual(len(res), 0)
 
-    def CheckInsertStartsTransaction(self):
+    def test_InsertStartsTransaction(self):
         self.cur1.execute("create table test(i)")
         self.cur1.execute("insert into test(i) values (5)")
         self.cur2.execute("select i from test")
         res = self.cur2.fetchall()
         self.assertEqual(len(res), 0)
 
-    def CheckUpdateStartsTransaction(self):
+    def test_UpdateStartsTransaction(self):
         self.cur1.execute("create table test(i)")
         self.cur1.execute("insert into test(i) values (5)")
         self.con1.commit()
@@ -76,7 +76,7 @@ class TransactionTests(unittest.TestCase):
         res = self.cur2.fetchone()[0]
         self.assertEqual(res, 5)
 
-    def CheckDeleteStartsTransaction(self):
+    def test_DeleteStartsTransaction(self):
         self.cur1.execute("create table test(i)")
         self.cur1.execute("insert into test(i) values (5)")
         self.con1.commit()
@@ -85,7 +85,7 @@ class TransactionTests(unittest.TestCase):
         res = self.cur2.fetchall()
         self.assertEqual(len(res), 1)
 
-    def CheckReplaceStartsTransaction(self):
+    def test_ReplaceStartsTransaction(self):
         self.cur1.execute("create table test(i)")
         self.cur1.execute("insert into test(i) values (5)")
         self.con1.commit()
@@ -95,7 +95,7 @@ class TransactionTests(unittest.TestCase):
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0][0], 5)
 
-    def CheckToggleAutoCommit(self):
+    def test_ToggleAutoCommit(self):
         self.cur1.execute("create table test(i)")
         self.cur1.execute("insert into test(i) values (5)")
         self.con1.isolation_level = None
@@ -113,7 +113,7 @@ class TransactionTests(unittest.TestCase):
 
     @unittest.skipIf(sqlite.sqlite_version_info < (3, 2, 2),
                      'test hangs on sqlite versions older than 3.2.2')
-    def CheckRaiseTimeout(self):
+    def test_RaiseTimeout(self):
         self.cur1.execute("create table test(i)")
         self.cur1.execute("insert into test(i) values (5)")
         with self.assertRaises(sqlite.OperationalError):
@@ -121,7 +121,7 @@ class TransactionTests(unittest.TestCase):
 
     @unittest.skipIf(sqlite.sqlite_version_info < (3, 2, 2),
                      'test hangs on sqlite versions older than 3.2.2')
-    def CheckLocking(self):
+    def test_Locking(self):
         """
         This tests the improved concurrency with pysqlite 2.3.4. You needed
         to roll back con2 before you could commit con1.
@@ -133,7 +133,7 @@ class TransactionTests(unittest.TestCase):
         # NO self.con2.rollback() HERE!!!
         self.con1.commit()
 
-    def CheckRollbackCursorConsistency(self):
+    def test_RollbackCursorConsistency(self):
         """
         Checks if cursors on the connection are set into a "reset" state
         when a rollback is done on the connection.
@@ -153,12 +153,12 @@ class SpecialCommandTests(unittest.TestCase):
         self.con = sqlite.connect(":memory:")
         self.cur = self.con.cursor()
 
-    def CheckDropTable(self):
+    def test_DropTable(self):
         self.cur.execute("create table test(i)")
         self.cur.execute("insert into test(i) values (5)")
         self.cur.execute("drop table test")
 
-    def CheckPragma(self):
+    def test_Pragma(self):
         self.cur.execute("create table test(i)")
         self.cur.execute("insert into test(i) values (5)")
         self.cur.execute("pragma count_changes=1")
@@ -171,7 +171,7 @@ class TransactionalDDL(unittest.TestCase):
     def setUp(self):
         self.con = sqlite.connect(":memory:")
 
-    def CheckDdlDoesNotAutostartTransaction(self):
+    def test_DdlDoesNotAutostartTransaction(self):
         # For backwards compatibility reasons, DDL statements should not
         # implicitly start a transaction.
         self.con.execute("create table test(i)")
@@ -184,7 +184,7 @@ class TransactionalDDL(unittest.TestCase):
         result = self.con.execute("select * from test2").fetchall()
         self.assertEqual(result, [])
 
-    def CheckImmediateTransactionalDDL(self):
+    def test_ImmediateTransactionalDDL(self):
         # You can achieve transactional DDL by issuing a BEGIN
         # statement manually.
         self.con.execute("begin immediate")
@@ -193,7 +193,7 @@ class TransactionalDDL(unittest.TestCase):
         with self.assertRaises(sqlite.OperationalError):
             self.con.execute("select * from test")
 
-    def CheckTransactionalDDL(self):
+    def test_TransactionalDDL(self):
         # You can achieve transactional DDL by issuing a BEGIN
         # statement manually.
         self.con.execute("begin")
@@ -285,11 +285,13 @@ class DMLStatementDetectionTestCase(unittest.TestCase):
 
 
 def suite():
-    default_suite = unittest.makeSuite(TransactionTests, "Check")
-    special_command_suite = unittest.makeSuite(SpecialCommandTests, "Check")
-    ddl_suite = unittest.makeSuite(TransactionalDDL, "Check")
-    dml_suite = unittest.makeSuite(DMLStatementDetectionTestCase)
-    return unittest.TestSuite((default_suite, special_command_suite, ddl_suite, dml_suite))
+    loader = unittest.TestLoader()
+    tests = [loader.loadTestsFromTestCase(t) for t in (
+        TransactionTests,
+        SpecialCommandTests,
+        TransactionalDDL,
+        DMLStatementDetectionTestCase)]
+    return unittest.TestSuite(tests)
 
 def test():
     runner = unittest.TextTestRunner()

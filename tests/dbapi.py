@@ -31,61 +31,61 @@ from os import unlink
 
 
 class ModuleTests(unittest.TestCase):
-    def CheckAPILevel(self):
+    def test_APILevel(self):
         self.assertEqual(sqlite.apilevel, "2.0",
                          "apilevel is %s, should be 2.0" % sqlite.apilevel)
 
-    def CheckThreadSafety(self):
+    def test_ThreadSafety(self):
         self.assertEqual(sqlite.threadsafety, 1,
                          "threadsafety is %d, should be 1" % sqlite.threadsafety)
 
-    def CheckParamStyle(self):
+    def test_ParamStyle(self):
         self.assertEqual(sqlite.paramstyle, "qmark",
                          "paramstyle is '%s', should be 'qmark'" %
                          sqlite.paramstyle)
 
-    def CheckWarning(self):
+    def test_Warning(self):
         self.assertTrue(issubclass(sqlite.Warning, Exception),
                      "Warning is not a subclass of Exception")
 
-    def CheckError(self):
+    def test_Error(self):
         self.assertTrue(issubclass(sqlite.Error, Exception),
                         "Error is not a subclass of Exception")
 
-    def CheckInterfaceError(self):
+    def test_InterfaceError(self):
         self.assertTrue(issubclass(sqlite.InterfaceError, sqlite.Error),
                         "InterfaceError is not a subclass of Error")
 
-    def CheckDatabaseError(self):
+    def test_DatabaseError(self):
         self.assertTrue(issubclass(sqlite.DatabaseError, sqlite.Error),
                         "DatabaseError is not a subclass of Error")
 
-    def CheckDataError(self):
+    def test_DataError(self):
         self.assertTrue(issubclass(sqlite.DataError, sqlite.DatabaseError),
                         "DataError is not a subclass of DatabaseError")
 
-    def CheckOperationalError(self):
+    def test_OperationalError(self):
         self.assertTrue(issubclass(sqlite.OperationalError, sqlite.DatabaseError),
                         "OperationalError is not a subclass of DatabaseError")
 
-    def CheckIntegrityError(self):
+    def test_IntegrityError(self):
         self.assertTrue(issubclass(sqlite.IntegrityError, sqlite.DatabaseError),
                         "IntegrityError is not a subclass of DatabaseError")
 
-    def CheckInternalError(self):
+    def test_InternalError(self):
         self.assertTrue(issubclass(sqlite.InternalError, sqlite.DatabaseError),
                         "InternalError is not a subclass of DatabaseError")
 
-    def CheckProgrammingError(self):
+    def test_ProgrammingError(self):
         self.assertTrue(issubclass(sqlite.ProgrammingError, sqlite.DatabaseError),
                         "ProgrammingError is not a subclass of DatabaseError")
 
-    def CheckNotSupportedError(self):
+    def test_NotSupportedError(self):
         self.assertTrue(issubclass(sqlite.NotSupportedError,
                                    sqlite.DatabaseError),
                         "NotSupportedError is not a subclass of DatabaseError")
 
-    def CheckErrorCodeOnException(self):
+    def test_ErrorCodeOnException(self):
         with self.assertRaises(sqlite.Error) as cm:
             db = sqlite.connect('/no/such/file/exists')
         e = cm.exception
@@ -104,38 +104,38 @@ class ConnectionTests(unittest.TestCase):
     def tearDown(self):
         self.cx.close()
 
-    def CheckCommit(self):
+    def test_Commit(self):
         self.cx.commit()
 
-    def CheckCommitAfterNoChanges(self):
+    def test_CommitAfterNoChanges(self):
         """
         A commit should also work when no changes were made to the database.
         """
         self.cx.commit()
         self.cx.commit()
 
-    def CheckRollback(self):
+    def test_Rollback(self):
         self.cx.rollback()
 
-    def CheckRollbackAfterNoChanges(self):
+    def test_RollbackAfterNoChanges(self):
         """
         A rollback should also work when no changes were made to the database.
         """
         self.cx.rollback()
         self.cx.rollback()
 
-    def CheckCursor(self):
+    def test_Cursor(self):
         cu = self.cx.cursor()
 
-    def CheckFailedOpen(self):
+    def test_FailedOpen(self):
         YOU_CANNOT_OPEN_THIS = "/foo/bar/bla/23534/mydb.db"
         with self.assertRaises(sqlite.OperationalError):
             con = sqlite.connect(YOU_CANNOT_OPEN_THIS)
 
-    def CheckClose(self):
+    def test_Close(self):
         self.cx.close()
 
-    def CheckExceptions(self):
+    def test_Exceptions(self):
         # Optional DB-API extension.
         self.assertEqual(self.cx.Warning, sqlite.Warning)
         self.assertEqual(self.cx.Error, sqlite.Error)
@@ -148,7 +148,7 @@ class ConnectionTests(unittest.TestCase):
         self.assertEqual(self.cx.ProgrammingError, sqlite.ProgrammingError)
         self.assertEqual(self.cx.NotSupportedError, sqlite.NotSupportedError)
 
-    def CheckInTransaction(self):
+    def test_InTransaction(self):
         # Can't use db from setUp because we want to test initial state.
         cx = sqlite.connect(":memory:")
         cu = cx.cursor()
@@ -166,11 +166,11 @@ class ConnectionTests(unittest.TestCase):
         row = cu.fetchone()
         self.assertEqual(cx.in_transaction, False)
 
-    def CheckInTransactionRO(self):
+    def test_InTransactionRO(self):
         with self.assertRaises(AttributeError):
             self.cx.in_transaction = True
 
-    def CheckOpenWithPathLikeObject(self):
+    def test_OpenWithPathLikeObject(self):
         """ Checks that we can successfully connect to a database using an object that
             is PathLike, i.e. has __fspath__(). """
         self.addCleanup(unlink, TESTFN)
@@ -181,7 +181,7 @@ class ConnectionTests(unittest.TestCase):
         with sqlite.connect(path) as cx:
             cx.execute('create table test(id integer)')
 
-    def CheckOpenUri(self):
+    def test_OpenUri(self):
         if sqlite.sqlite_version_info < (3, 7, 7):
             with self.assertRaises(sqlite.NotSupportedError):
                 sqlite.connect(':memory:', uri=True)
@@ -197,7 +197,7 @@ class ConnectionTests(unittest.TestCase):
 
     @unittest.skipIf(sqlite.sqlite_version_info >= (3, 3, 1),
                      'needs sqlite versions older than 3.3.1')
-    def CheckSameThreadErrorOnOldVersion(self):
+    def test_SameThreadErrorOnOldVersion(self):
         with self.assertRaises(sqlite.NotSupportedError) as cm:
             sqlite.connect(':memory:', check_same_thread=False)
         self.assertEqual(str(cm.exception), 'shared connections not available')
@@ -216,21 +216,21 @@ class CursorTests(unittest.TestCase):
         self.cu.close()
         self.cx.close()
 
-    def CheckExecuteNoArgs(self):
+    def test_ExecuteNoArgs(self):
         self.cu.execute("delete from test")
 
-    def CheckExecuteIllegalSql(self):
+    def test_ExecuteIllegalSql(self):
         with self.assertRaises(sqlite.OperationalError):
             self.cu.execute("select asdf")
 
-    def CheckExecuteTooMuchSql(self):
+    def test_ExecuteTooMuchSql(self):
         with self.assertRaises(sqlite.Warning):
             self.cu.execute("select 5+4; select 4+5")
 
-    def CheckExecuteTooMuchSql2(self):
+    def test_ExecuteTooMuchSql2(self):
         self.cu.execute("select 5+4; -- foo bar")
 
-    def CheckExecuteTooMuchSql3(self):
+    def test_ExecuteTooMuchSql3(self):
         self.cu.execute("""
             select 5+4;
 
@@ -239,53 +239,53 @@ class CursorTests(unittest.TestCase):
             */
             """)
 
-    def CheckExecuteWrongSqlArg(self):
+    def test_ExecuteWrongSqlArg(self):
         with self.assertRaises(TypeError):
             self.cu.execute(42)
 
-    def CheckExecuteArgInt(self):
+    def test_ExecuteArgInt(self):
         self.cu.execute("insert into test(id) values (?)", (42,))
 
-    def CheckExecuteArgFloat(self):
+    def test_ExecuteArgFloat(self):
         self.cu.execute("insert into test(income) values (?)", (2500.32,))
 
-    def CheckExecuteArgString(self):
+    def test_ExecuteArgString(self):
         self.cu.execute("insert into test(name) values (?)", ("Hugo",))
 
-    def CheckExecuteArgStringWithZeroByte(self):
+    def test_ExecuteArgStringWithZeroByte(self):
         self.cu.execute("insert into test(name) values (?)", ("Hu\x00go",))
 
         self.cu.execute("select name from test where id=?", (self.cu.lastrowid,))
         row = self.cu.fetchone()
         self.assertEqual(row[0], "Hu\x00go")
 
-    def CheckExecuteNonIterable(self):
+    def test_ExecuteNonIterable(self):
         with self.assertRaises(ValueError) as cm:
             self.cu.execute("insert into test(id) values (?)", 42)
         self.assertEqual(str(cm.exception), 'parameters are of unsupported type')
 
-    def CheckExecuteWrongNoOfArgs1(self):
+    def test_ExecuteWrongNoOfArgs1(self):
         # too many parameters
         with self.assertRaises(sqlite.ProgrammingError):
             self.cu.execute("insert into test(id) values (?)", (17, "Egon"))
 
-    def CheckExecuteWrongNoOfArgs2(self):
+    def test_ExecuteWrongNoOfArgs2(self):
         # too little parameters
         with self.assertRaises(sqlite.ProgrammingError):
             self.cu.execute("insert into test(id) values (?)")
 
-    def CheckExecuteWrongNoOfArgs3(self):
+    def test_ExecuteWrongNoOfArgs3(self):
         # no parameters, parameters are needed
         with self.assertRaises(sqlite.ProgrammingError):
             self.cu.execute("insert into test(id) values (?)")
 
-    def CheckExecuteParamList(self):
+    def test_ExecuteParamList(self):
         self.cu.execute("insert into test(name) values ('foo')")
         self.cu.execute("select name from test where name=?", ["foo"])
         row = self.cu.fetchone()
         self.assertEqual(row[0], "foo")
 
-    def CheckExecuteParamSequence(self):
+    def test_ExecuteParamSequence(self):
         class L(object):
             def __len__(self):
                 return 1
@@ -298,13 +298,13 @@ class CursorTests(unittest.TestCase):
         row = self.cu.fetchone()
         self.assertEqual(row[0], "foo")
 
-    def CheckExecuteDictMapping(self):
+    def test_ExecuteDictMapping(self):
         self.cu.execute("insert into test(name) values ('foo')")
         self.cu.execute("select name from test where name=:name", {"name": "foo"})
         row = self.cu.fetchone()
         self.assertEqual(row[0], "foo")
 
-    def CheckExecuteDictMapping_Mapping(self):
+    def test_ExecuteDictMapping_Mapping(self):
         class D(dict):
             def __missing__(self, key):
                 return "foo"
@@ -314,32 +314,32 @@ class CursorTests(unittest.TestCase):
         row = self.cu.fetchone()
         self.assertEqual(row[0], "foo")
 
-    def CheckExecuteDictMappingTooLittleArgs(self):
+    def test_ExecuteDictMappingTooLittleArgs(self):
         self.cu.execute("insert into test(name) values ('foo')")
         with self.assertRaises(sqlite.ProgrammingError):
             self.cu.execute("select name from test where name=:name and id=:id", {"name": "foo"})
 
-    def CheckExecuteDictMappingNoArgs(self):
+    def test_ExecuteDictMappingNoArgs(self):
         self.cu.execute("insert into test(name) values ('foo')")
         with self.assertRaises(sqlite.ProgrammingError):
             self.cu.execute("select name from test where name=:name")
 
-    def CheckExecuteDictMappingUnnamed(self):
+    def test_ExecuteDictMappingUnnamed(self):
         self.cu.execute("insert into test(name) values ('foo')")
         with self.assertRaises(sqlite.ProgrammingError):
             self.cu.execute("select name from test where name=?", {"name": "foo"})
 
-    def CheckClose(self):
+    def test_Close(self):
         self.cu.close()
 
-    def CheckRowcountExecute(self):
+    def test_RowcountExecute(self):
         self.cu.execute("delete from test")
         self.cu.execute("insert into test(name) values ('foo')")
         self.cu.execute("insert into test(name) values ('foo')")
         self.cu.execute("update test set name='bar'")
         self.assertEqual(self.cu.rowcount, 2)
 
-    def CheckRowcountSelect(self):
+    def test_RowcountSelect(self):
         """
         pysqlite does not know the rowcount of SELECT statements, because we
         don't fetch all rows after executing the select statement. The rowcount
@@ -348,12 +348,12 @@ class CursorTests(unittest.TestCase):
         self.cu.execute("select 5 union select 6")
         self.assertEqual(self.cu.rowcount, -1)
 
-    def CheckRowcountExecutemany(self):
+    def test_RowcountExecutemany(self):
         self.cu.execute("delete from test")
         self.cu.executemany("insert into test(name) values (?)", [(1,), (2,), (3,)])
         self.assertEqual(self.cu.rowcount, 3)
 
-    def CheckTotalChanges(self):
+    def test_TotalChanges(self):
         self.cu.execute("insert into test(name) values ('foo')")
         self.cu.execute("insert into test(name) values ('foo')")
         self.assertLess(2, self.cx.total_changes, msg='total changes reported wrong value')
@@ -362,10 +362,10 @@ class CursorTests(unittest.TestCase):
     # Sequences are required by the DB-API, iterators
     # enhancements in pysqlite.
 
-    def CheckExecuteManySequence(self):
+    def test_ExecuteManySequence(self):
         self.cu.executemany("insert into test(income) values (?)", [(x,) for x in range(100, 110)])
 
-    def CheckExecuteManyIterator(self):
+    def test_ExecuteManyIterator(self):
         class MyIter:
             def __init__(self):
                 self.value = 5
@@ -379,26 +379,26 @@ class CursorTests(unittest.TestCase):
 
         self.cu.executemany("insert into test(income) values (?)", MyIter())
 
-    def CheckExecuteManyGenerator(self):
+    def test_ExecuteManyGenerator(self):
         def mygen():
             for i in range(5):
                 yield (i,)
 
         self.cu.executemany("insert into test(income) values (?)", mygen())
 
-    def CheckExecuteManyWrongSqlArg(self):
+    def test_ExecuteManyWrongSqlArg(self):
         with self.assertRaises(TypeError):
             self.cu.executemany(42, [(3,)])
 
-    def CheckExecuteManySelect(self):
+    def test_ExecuteManySelect(self):
         with self.assertRaises(sqlite.ProgrammingError):
             self.cu.executemany("select ?", [(3,)])
 
-    def CheckExecuteManyNotIterable(self):
+    def test_ExecuteManyNotIterable(self):
         with self.assertRaises(TypeError):
             self.cu.executemany("insert into test(income) values (?)", 42)
 
-    def CheckFetchIter(self):
+    def test_FetchIter(self):
         # Optional DB-API extension.
         self.cu.execute("delete from test")
         self.cu.execute("insert into test(id) values (?)", (5,))
@@ -410,19 +410,19 @@ class CursorTests(unittest.TestCase):
         self.assertEqual(lst[0], 5)
         self.assertEqual(lst[1], 6)
 
-    def CheckFetchone(self):
+    def test_Fetchone(self):
         self.cu.execute("select name from test")
         row = self.cu.fetchone()
         self.assertEqual(row[0], "foo")
         row = self.cu.fetchone()
         self.assertEqual(row, None)
 
-    def CheckFetchoneNoStatement(self):
+    def test_FetchoneNoStatement(self):
         cur = self.cx.cursor()
         row = cur.fetchone()
         self.assertEqual(row, None)
 
-    def CheckArraySize(self):
+    def test_ArraySize(self):
         # must default ot 1
         self.assertEqual(self.cu.arraysize, 1)
 
@@ -439,51 +439,51 @@ class CursorTests(unittest.TestCase):
 
         self.assertEqual(len(res), 2)
 
-    def CheckFetchmany(self):
+    def test_Fetchmany(self):
         self.cu.execute("select name from test")
         res = self.cu.fetchmany(100)
         self.assertEqual(len(res), 1)
         res = self.cu.fetchmany(100)
         self.assertEqual(res, [])
 
-    def CheckFetchmanyKwArg(self):
+    def test_FetchmanyKwArg(self):
         """Checks if fetchmany works with keyword arguments"""
         self.cu.execute("select name from test")
         res = self.cu.fetchmany(size=100)
         self.assertEqual(len(res), 1)
 
-    def CheckFetchall(self):
+    def test_Fetchall(self):
         self.cu.execute("select name from test")
         res = self.cu.fetchall()
         self.assertEqual(len(res), 1)
         res = self.cu.fetchall()
         self.assertEqual(res, [])
 
-    def CheckSetinputsizes(self):
+    def test_Setinputsizes(self):
         self.cu.setinputsizes([3, 4, 5])
 
-    def CheckSetoutputsize(self):
+    def test_Setoutputsize(self):
         self.cu.setoutputsize(5, 0)
 
-    def CheckSetoutputsizeNoColumn(self):
+    def test_SetoutputsizeNoColumn(self):
         self.cu.setoutputsize(42)
 
-    def CheckCursorConnection(self):
+    def test_CursorConnection(self):
         # Optional DB-API extension.
         self.assertEqual(self.cu.connection, self.cx)
 
-    def CheckWrongCursorCallable(self):
+    def test_WrongCursorCallable(self):
         with self.assertRaises(TypeError):
             def f(): pass
             cur = self.cx.cursor(f)
 
-    def CheckCursorWrongClass(self):
+    def test_CursorWrongClass(self):
         class Foo: pass
         foo = Foo()
         with self.assertRaises(TypeError):
             cur = sqlite.Cursor(foo)
 
-    def CheckLastRowIDOnReplace(self):
+    def test_LastRowIDOnReplace(self):
         """
         INSERT OR REPLACE and REPLACE INTO should produce the same behavior.
         """
@@ -493,7 +493,7 @@ class CursorTests(unittest.TestCase):
                 self.cu.execute(sql.format(statement), (1, 'foo'))
                 self.assertEqual(self.cu.lastrowid, 1)
 
-    def CheckLastRowIDOnIgnore(self):
+    def test_LastRowIDOnIgnore(self):
         self.cu.execute(
             "insert or ignore into test(unique_test) values (?)",
             ('test',))
@@ -503,7 +503,7 @@ class CursorTests(unittest.TestCase):
             ('test',))
         self.assertEqual(self.cu.lastrowid, 2)
 
-    def CheckLastRowIDInsertOR(self):
+    def test_LastRowIDInsertOR(self):
         results = []
         for statement in ('FAIL', 'ABORT', 'ROLLBACK'):
             sql = 'INSERT OR {} INTO test(unique_test) VALUES (?)'
@@ -533,160 +533,160 @@ class BlobTests(unittest.TestCase):
         self.blob.close()
         self.cx.close()
 
-    def CheckLength(self):
+    def test_Length(self):
         self.assertEqual(len(self.blob), 100)
 
-    def CheckTell(self):
+    def test_Tell(self):
         self.assertEqual(self.blob.tell(), 0)
 
-    def CheckSeekFromBlobStart(self):
+    def test_SeekFromBlobStart(self):
         self.blob.seek(10)
         self.assertEqual(self.blob.tell(), 10)
         self.blob.seek(10, 0)
         self.assertEqual(self.blob.tell(), 10)
 
-    def CheckSeekFromCurrentPosition(self):
+    def test_SeekFromCurrentPosition(self):
         self.blob.seek(10, 1)
         self.blob.seek(10, 1)
         self.assertEqual(self.blob.tell(), 20)
 
-    def CheckSeekFromBlobEnd(self):
+    def test_SeekFromBlobEnd(self):
         self.blob.seek(-10, 2)
         self.assertEqual(self.blob.tell(), 90)
 
-    def CheckBlobSeekOverBlobSize(self):
+    def test_BlobSeekOverBlobSize(self):
         with self.assertRaises(ValueError):
             self.blob.seek(1000)
 
-    def CheckBlobSeekUnderBlobSize(self):
+    def test_BlobSeekUnderBlobSize(self):
         with self.assertRaises(ValueError):
             self.blob.seek(-10)
 
-    def CheckBlobRead(self):
+    def test_BlobRead(self):
         self.assertEqual(self.blob.read(), self.blob_data)
 
-    def CheckBlobReadSize(self):
+    def test_BlobReadSize(self):
         self.assertEqual(len(self.blob.read(10)), 10)
 
-    def CheckBlobReadAdvanceOffset(self):
+    def test_BlobReadAdvanceOffset(self):
         self.blob.read(10)
         self.assertEqual(self.blob.tell(), 10)
 
-    def CheckBlobReadStartAtOffset(self):
+    def test_BlobReadStartAtOffset(self):
         self.blob.seek(10)
         self.blob.write(self.second_data[:10])
         self.blob.seek(10)
         self.assertEqual(self.blob.read(10), self.second_data[:10])
 
-    def CheckBlobWrite(self):
+    def test_BlobWrite(self):
         self.blob.write(self.second_data)
         self.assertEqual(self.cx.execute("select blob_col from test").fetchone()[0], self.second_data)
 
-    def CheckBlobWriteAtOffset(self):
+    def test_BlobWriteAtOffset(self):
         self.blob.seek(50)
         self.blob.write(self.second_data[:50])
         self.assertEqual(self.cx.execute("select blob_col from test").fetchone()[0],
                          self.blob_data[:50] + self.second_data[:50])
 
-    def CheckBlobWriteAdvanceOffset(self):
+    def test_BlobWriteAdvanceOffset(self):
         self.blob.write(self.second_data[:50])
         self.assertEqual(self.blob.tell(), 50)
 
-    def CheckBlobWriteMoreThenBlobSize(self):
+    def test_BlobWriteMoreThenBlobSize(self):
         with self.assertRaises(ValueError):
             self.blob.write(b"a" * 1000)
 
-    def CheckBlobReadAfterRowChange(self):
+    def test_BlobReadAfterRowChange(self):
         self.cx.execute("UPDATE test SET blob_col='aaaa' where id=1")
         with self.assertRaises(sqlite.OperationalError):
             self.blob.read()
 
-    def CheckBlobWriteAfterRowChange(self):
+    def test_BlobWriteAfterRowChange(self):
         self.cx.execute("UPDATE test SET blob_col='aaaa' where id=1")
         with self.assertRaises(sqlite.OperationalError):
             self.blob.write(b"aaa")
 
-    def CheckBlobWriteWhenReadOnly(self):
+    def test_BlobWriteWhenReadOnly(self):
         read_only_blob = \
             self.cx.open_blob("test", "blob_col", 1, readonly=True)
         with self.assertRaises(sqlite.OperationalError):
             read_only_blob.write(b"aaa")
         read_only_blob.close()
 
-    def CheckBlobOpenWithBadDb(self):
+    def test_BlobOpenWithBadDb(self):
         with self.assertRaises(sqlite.OperationalError):
             self.cx.open_blob("test", "blob_col", 1, dbname="notexisintg")
 
-    def CheckBlobOpenWithBadTable(self):
+    def test_BlobOpenWithBadTable(self):
         with self.assertRaises(sqlite.OperationalError):
             self.cx.open_blob("notexisintg", "blob_col", 1)
 
-    def CheckBlobOpenWithBadColumn(self):
+    def test_BlobOpenWithBadColumn(self):
         with self.assertRaises(sqlite.OperationalError):
             self.cx.open_blob("test", "notexisting", 1)
 
-    def CheckBlobOpenWithBadRow(self):
+    def test_BlobOpenWithBadRow(self):
         with self.assertRaises(sqlite.OperationalError):
             self.cx.open_blob("test", "blob_col", 2)
 
-    def CheckBlobGetItem(self):
+    def test_BlobGetItem(self):
         self.assertEqual(self.blob[5], b"a")
 
-    def CheckBlobGetItemIndexOutOfRange(self):
+    def test_BlobGetItemIndexOutOfRange(self):
         with self.assertRaises(IndexError):
             self.blob[105]
         with self.assertRaises(IndexError):
             self.blob[-105]
 
-    def CheckBlobGetItemNegativeIndex(self):
+    def test_BlobGetItemNegativeIndex(self):
         self.assertEqual(self.blob[-5], b"a")
 
-    def CheckBlobGetItemInvalidIndex(self):
+    def test_BlobGetItemInvalidIndex(self):
         with self.assertRaises(TypeError):
             self.blob[b"a"]
 
-    def CheckBlobGetSlice(self):
+    def test_BlobGetSlice(self):
         self.assertEqual(self.blob[5:10], b"aaaaa")
 
-    def CheckBlobGetSliceNegativeIndex(self):
+    def test_BlobGetSliceNegativeIndex(self):
         self.assertEqual(self.blob[5:-5], self.blob_data[5:-5])
 
-    def CheckBlobGetSliceInvalidIndex(self):
+    def test_BlobGetSliceInvalidIndex(self):
         with self.assertRaises(TypeError):
             self.blob[5:b"a"]
 
-    def CheckBlobGetSliceWithSkip(self):
+    def test_BlobGetSliceWithSkip(self):
         self.blob.write(b"abcdefghij")
         self.assertEqual(self.blob[0:10:2], b"acegi")
 
-    def CheckBlobSetItem(self):
+    def test_BlobSetItem(self):
         self.blob[0] = b"b"
         self.assertEqual(self.cx.execute("select blob_col from test").fetchone()[0], b"b" + self.blob_data[1:])
 
-    def CheckBlobSetSlice(self):
+    def test_BlobSetSlice(self):
         self.blob[0:5] = b"bbbbb"
         self.assertEqual(self.cx.execute("select blob_col from test").fetchone()[0], b"bbbbb" + self.blob_data[5:])
 
-    def CheckBlobSetSliceWithSkip(self):
+    def test_BlobSetSliceWithSkip(self):
         self.blob[0:10:2] = b"bbbbb"
         self.assertEqual(self.cx.execute("select blob_col from test").fetchone()[0], b"bababababa" + self.blob_data[10:])
 
-    def CheckBlobGetEmptySlice(self):
+    def test_BlobGetEmptySlice(self):
         self.assertEqual(self.blob[5:5], b"")
 
-    def CheckBlobSetSliceWrongLength(self):
+    def test_BlobSetSliceWrongLength(self):
         with self.assertRaises(IndexError):
             self.blob[5:10] = b"a"
 
-    def CheckBlobConcatNotSupported(self):
+    def test_BlobConcatNotSupported(self):
         with self.assertRaises(SystemError):
             self.blob + self.blob
 
-    def CheckBlobRepeateNotSupported(self):
+    def test_BlobRepeateNotSupported(self):
         with self.assertRaises(SystemError):
             self.blob * 5
 
-    def CheckBlobContainsNotSupported(self):
+    def test_BlobContainsNotSupported(self):
         with self.assertRaises(SystemError):
             b"aaaaa" in self.blob
 
@@ -701,7 +701,7 @@ class ThreadTests(unittest.TestCase):
         self.cur.close()
         self.con.close()
 
-    def CheckConCursor(self):
+    def test_ConCursor(self):
         def run(con, errors):
             try:
                 cur = con.cursor()
@@ -719,7 +719,7 @@ class ThreadTests(unittest.TestCase):
         if len(errors) > 0:
             self.fail("\n".join(errors))
 
-    def CheckConCommit(self):
+    def test_ConCommit(self):
         def run(con, errors):
             try:
                 con.commit()
@@ -737,7 +737,7 @@ class ThreadTests(unittest.TestCase):
         if len(errors) > 0:
             self.fail("\n".join(errors))
 
-    def CheckConRollback(self):
+    def test_ConRollback(self):
         def run(con, errors):
             try:
                 con.rollback()
@@ -755,7 +755,7 @@ class ThreadTests(unittest.TestCase):
         if len(errors) > 0:
             self.fail("\n".join(errors))
 
-    def CheckConClose(self):
+    def test_ConClose(self):
         def run(con, errors):
             try:
                 con.close()
@@ -773,7 +773,7 @@ class ThreadTests(unittest.TestCase):
         if len(errors) > 0:
             self.fail("\n".join(errors))
 
-    def CheckCurImplicitBegin(self):
+    def test_CurImplicitBegin(self):
         def run(cur, errors):
             try:
                 cur.execute("insert into test(name) values ('a')")
@@ -791,7 +791,7 @@ class ThreadTests(unittest.TestCase):
         if len(errors) > 0:
             self.fail("\n".join(errors))
 
-    def CheckCurClose(self):
+    def test_CurClose(self):
         def run(cur, errors):
             try:
                 cur.close()
@@ -809,7 +809,7 @@ class ThreadTests(unittest.TestCase):
         if len(errors) > 0:
             self.fail("\n".join(errors))
 
-    def CheckCurExecute(self):
+    def test_CurExecute(self):
         def run(cur, errors):
             try:
                 cur.execute("select name from test")
@@ -828,7 +828,7 @@ class ThreadTests(unittest.TestCase):
         if len(errors) > 0:
             self.fail("\n".join(errors))
 
-    def CheckCurIterNext(self):
+    def test_CurIterNext(self):
         def run(cur, errors):
             try:
                 row = cur.fetchone()
@@ -849,29 +849,29 @@ class ThreadTests(unittest.TestCase):
             self.fail("\n".join(errors))
 
 class ConstructorTests(unittest.TestCase):
-    def CheckDate(self):
+    def test_Date(self):
         d = sqlite.Date(2004, 10, 28)
 
-    def CheckTime(self):
+    def test_Time(self):
         t = sqlite.Time(12, 39, 35)
 
-    def CheckTimestamp(self):
+    def test_Timestamp(self):
         ts = sqlite.Timestamp(2004, 10, 28, 12, 39, 35)
 
-    def CheckDateFromTicks(self):
+    def test_DateFromTicks(self):
         d = sqlite.DateFromTicks(42)
 
-    def CheckTimeFromTicks(self):
+    def test_TimeFromTicks(self):
         t = sqlite.TimeFromTicks(42)
 
-    def CheckTimestampFromTicks(self):
+    def test_TimestampFromTicks(self):
         ts = sqlite.TimestampFromTicks(42)
 
-    def CheckBinary(self):
+    def test_Binary(self):
         b = sqlite.Binary(b"\0'")
 
 class ExtensionTests(unittest.TestCase):
-    def CheckScriptStringSql(self):
+    def test_ScriptStringSql(self):
         con = sqlite.connect(":memory:")
         cur = con.cursor()
         cur.executescript("""
@@ -884,31 +884,31 @@ class ExtensionTests(unittest.TestCase):
         res = cur.fetchone()[0]
         self.assertEqual(res, 5)
 
-    def CheckScriptSyntaxError(self):
+    def test_ScriptSyntaxError(self):
         con = sqlite.connect(":memory:")
         cur = con.cursor()
         with self.assertRaises(sqlite.OperationalError):
             cur.executescript("create table test(x); asdf; create table test2(x)")
 
-    def CheckScriptErrorNormal(self):
+    def test_ScriptErrorNormal(self):
         con = sqlite.connect(":memory:")
         cur = con.cursor()
         with self.assertRaises(sqlite.OperationalError):
             cur.executescript("create table test(sadfsadfdsa); select foo from hurz;")
 
-    def CheckCursorExecutescriptAsBytes(self):
+    def test_CursorExecutescriptAsBytes(self):
         con = sqlite.connect(":memory:")
         cur = con.cursor()
         with self.assertRaises(ValueError) as cm:
             cur.executescript(b"create table test(foo); insert into test(foo) values (5);")
         self.assertEqual(str(cm.exception), 'script argument must be unicode.')
 
-    def CheckConnectionExecute(self):
+    def test_ConnectionExecute(self):
         con = sqlite.connect(":memory:")
         result = con.execute("select 5").fetchone()[0]
         self.assertEqual(result, 5, "Basic test of Connection.execute")
 
-    def CheckConnectionExecutemany(self):
+    def test_ConnectionExecutemany(self):
         con = sqlite.connect(":memory:")
         con.execute("create table test(foo)")
         con.executemany("insert into test(foo) values (?)", [(3,), (4,)])
@@ -916,39 +916,39 @@ class ExtensionTests(unittest.TestCase):
         self.assertEqual(result[0][0], 3, "Basic test of Connection.executemany")
         self.assertEqual(result[1][0], 4, "Basic test of Connection.executemany")
 
-    def CheckConnectionExecutescript(self):
+    def test_ConnectionExecutescript(self):
         con = sqlite.connect(":memory:")
         con.executescript("create table test(foo); insert into test(foo) values (5);")
         result = con.execute("select foo from test").fetchone()[0]
         self.assertEqual(result, 5, "Basic test of Connection.executescript")
 
 class ClosedConTests(unittest.TestCase):
-    def CheckClosedConCursor(self):
+    def test_ClosedConCursor(self):
         con = sqlite.connect(":memory:")
         con.close()
         with self.assertRaises(sqlite.ProgrammingError):
             cur = con.cursor()
 
-    def CheckClosedConCommit(self):
+    def test_ClosedConCommit(self):
         con = sqlite.connect(":memory:")
         con.close()
         with self.assertRaises(sqlite.ProgrammingError):
             con.commit()
 
-    def CheckClosedConRollback(self):
+    def test_ClosedConRollback(self):
         con = sqlite.connect(":memory:")
         con.close()
         with self.assertRaises(sqlite.ProgrammingError):
             con.rollback()
 
-    def CheckClosedCurExecute(self):
+    def test_ClosedCurExecute(self):
         con = sqlite.connect(":memory:")
         cur = con.cursor()
         con.close()
         with self.assertRaises(sqlite.ProgrammingError):
             cur.execute("select 4")
 
-    def CheckClosedBlobRead(self):
+    def test_ClosedBlobRead(self):
         con = sqlite.connect(":memory:")
         con.execute("create table test(id integer primary key, blob_col blob)")
         con.execute("insert into test(blob_col) values (zeroblob(100))")
@@ -957,14 +957,14 @@ class ClosedConTests(unittest.TestCase):
         with self.assertRaises(sqlite.ProgrammingError):
             blob.read()
 
-    def CheckClosedCreateFunction(self):
+    def test_ClosedCreateFunction(self):
         con = sqlite.connect(":memory:")
         con.close()
         def f(x): return 17
         with self.assertRaises(sqlite.ProgrammingError):
             con.create_function("foo", 1, f)
 
-    def CheckClosedCreateAggregate(self):
+    def test_ClosedCreateAggregate(self):
         con = sqlite.connect(":memory:")
         con.close()
         class Agg:
@@ -977,7 +977,7 @@ class ClosedConTests(unittest.TestCase):
         with self.assertRaises(sqlite.ProgrammingError):
             con.create_aggregate("foo", 1, Agg)
 
-    def CheckClosedSetAuthorizer(self):
+    def test_ClosedSetAuthorizer(self):
         con = sqlite.connect(":memory:")
         con.close()
         def authorizer(*args):
@@ -985,21 +985,21 @@ class ClosedConTests(unittest.TestCase):
         with self.assertRaises(sqlite.ProgrammingError):
             con.set_authorizer(authorizer)
 
-    def CheckClosedSetProgressCallback(self):
+    def test_ClosedSetProgressCallback(self):
         con = sqlite.connect(":memory:")
         con.close()
         def progress(): pass
         with self.assertRaises(sqlite.ProgrammingError):
             con.set_progress_handler(progress, 100)
 
-    def CheckClosedCall(self):
+    def test_ClosedCall(self):
         con = sqlite.connect(":memory:")
         con.close()
         with self.assertRaises(sqlite.ProgrammingError):
             con()
 
 class ClosedCurTests(unittest.TestCase):
-    def CheckClosed(self):
+    def test_Closed(self):
         con = sqlite.connect(":memory:")
         cur = con.cursor()
         cur.close()
@@ -1023,7 +1023,7 @@ class SqliteColumnTypeTests(unittest.TestCase):
         self.cx.execute('create table test(a text, b datetime)')
         self.cx.execute('create view test_view as select * from test')
 
-    def CheckDeclTypes(self):
+    def test_DeclTypes(self):
         curs = self.cx.execute('select * from test')
         self.assertEqual(curs.description, (
             ('a', 'TEXT', None, None, None, None, None),
@@ -1063,7 +1063,7 @@ class SqliteOnConflictTests(unittest.TestCase):
         self.cu.close()
         self.cx.close()
 
-    def CheckOnConflictRollbackWithExplicitTransaction(self):
+    def test_OnConflictRollbackWithExplicitTransaction(self):
         self.cx.isolation_level = None  # autocommit mode
         self.cu = self.cx.cursor()
         # Start an explicit transaction.
@@ -1078,7 +1078,7 @@ class SqliteOnConflictTests(unittest.TestCase):
         # Transaction should have rolled back and nothing should be in table.
         self.assertEqual(self.cu.fetchall(), [])
 
-    def CheckOnConflictAbortRaisesWithExplicitTransactions(self):
+    def test_OnConflictAbortRaisesWithExplicitTransactions(self):
         # Abort cancels the current sql statement but doesn't change anything
         # about the current transaction.
         self.cx.isolation_level = None  # autocommit mode
@@ -1094,7 +1094,7 @@ class SqliteOnConflictTests(unittest.TestCase):
         # Expect the first two inserts to work, third to do nothing.
         self.assertEqual(self.cu.fetchall(), [('abort_test', None), (None, 'foo',)])
 
-    def CheckOnConflictRollbackWithoutTransaction(self):
+    def test_OnConflictRollbackWithoutTransaction(self):
         # Start of implicit transaction
         self.cu.execute("INSERT INTO test(name) VALUES ('abort_test')")
         self.cu.execute("INSERT OR ROLLBACK INTO test(unique_name) VALUES ('foo')")
@@ -1104,7 +1104,7 @@ class SqliteOnConflictTests(unittest.TestCase):
         # Implicit transaction is rolled back on error.
         self.assertEqual(self.cu.fetchall(), [])
 
-    def CheckOnConflictAbortRaisesWithoutTransactions(self):
+    def test_OnConflictAbortRaisesWithoutTransactions(self):
         # Abort cancels the current sql statement but doesn't change anything
         # about the current transaction.
         self.cu.execute("INSERT INTO test(name) VALUES ('abort_test')")
@@ -1115,20 +1115,20 @@ class SqliteOnConflictTests(unittest.TestCase):
         self.cu.execute("SELECT name, unique_name FROM test")
         self.assertEqual(self.cu.fetchall(), [('abort_test', None), (None, 'foo',)])
 
-    def CheckOnConflictFail(self):
+    def test_OnConflictFail(self):
         self.cu.execute("INSERT OR FAIL INTO test(unique_name) VALUES ('foo')")
         with self.assertRaises(sqlite.IntegrityError):
             self.cu.execute("INSERT OR FAIL INTO test(unique_name) VALUES ('foo')")
         self.assertEqual(self.cu.fetchall(), [])
 
-    def CheckOnConflictIgnore(self):
+    def test_OnConflictIgnore(self):
         self.cu.execute("INSERT OR IGNORE INTO test(unique_name) VALUES ('foo')")
         # Nothing should happen.
         self.cu.execute("INSERT OR IGNORE INTO test(unique_name) VALUES ('foo')")
         self.cu.execute("SELECT unique_name FROM test")
         self.assertEqual(self.cu.fetchall(), [('foo',)])
 
-    def CheckOnConflictReplace(self):
+    def test_OnConflictReplace(self):
         self.cu.execute("INSERT OR REPLACE INTO test(name, unique_name) VALUES ('Data!', 'foo')")
         # There shouldn't be an IntegrityError exception.
         self.cu.execute("INSERT OR REPLACE INTO test(name, unique_name) VALUES ('Very different data!', 'foo')")
@@ -1145,31 +1145,31 @@ class ClosedBlobTests(unittest.TestCase):
     def tearDown(self):
         self.cx.close()
 
-    def CheckClosedRead(self):
+    def test_ClosedRead(self):
         self.blob = self.cx.open_blob("test", "blob_col", 1)
         self.blob.close()
         with self.assertRaises(sqlite.ProgrammingError):
             self.blob.read()
 
-    def CheckClosedWrite(self):
+    def test_ClosedWrite(self):
         self.blob = self.cx.open_blob("test", "blob_col", 1)
         self.blob.close()
         with self.assertRaises(sqlite.ProgrammingError):
             self.blob.write(b"aaaaaaaaa")
 
-    def CheckClosedSeek(self):
+    def test_ClosedSeek(self):
         self.blob = self.cx.open_blob("test", "blob_col", 1)
         self.blob.close()
         with self.assertRaises(sqlite.ProgrammingError):
             self.blob.seek(10)
 
-    def CheckClosedTell(self):
+    def test_ClosedTell(self):
         self.blob = self.cx.open_blob("test", "blob_col", 1)
         self.blob.close()
         with self.assertRaises(sqlite.ProgrammingError):
             self.blob.tell()
 
-    def CheckClosedClose(self):
+    def test_ClosedClose(self):
         self.blob = self.cx.open_blob("test", "blob_col", 1)
         self.blob.close()
         with self.assertRaises(sqlite.ProgrammingError):
@@ -1185,13 +1185,13 @@ class BlobContextManagerTests(unittest.TestCase):
     def tearDown(self):
         self.cx.close()
 
-    def CheckContextExecute(self):
+    def test_ContextExecute(self):
         data = b"a" * 100
         with self.cx.open_blob("test", "blob_col", 1) as blob:
             blob.write(data)
         self.assertEqual(self.cx.execute("select blob_col from test").fetchone()[0], data)
 
-    def CheckContextCloseBlob(self):
+    def test_ContextCloseBlob(self):
         with self.cx.open_blob("test", "blob_col", 1) as blob:
             blob.seek(10)
         with self.assertRaises(sqlite.ProgrammingError):
@@ -1199,25 +1199,22 @@ class BlobContextManagerTests(unittest.TestCase):
 
 
 def suite():
-    module_suite = unittest.makeSuite(ModuleTests, "Check")
-    connection_suite = unittest.makeSuite(ConnectionTests, "Check")
-    cursor_suite = unittest.makeSuite(CursorTests, "Check")
-    thread_suite = unittest.makeSuite(ThreadTests, "Check")
-    constructor_suite = unittest.makeSuite(ConstructorTests, "Check")
-    ext_suite = unittest.makeSuite(ExtensionTests, "Check")
-    closed_con_suite = unittest.makeSuite(ClosedConTests, "Check")
-    closed_cur_suite = unittest.makeSuite(ClosedCurTests, "Check")
-    columntypes_suite = unittest.makeSuite(SqliteColumnTypeTests, "Check")
-    on_conflict_suite = unittest.makeSuite(SqliteOnConflictTests, "Check")
-    blob_suite = unittest.makeSuite(BlobTests, "Check")
-    closed_blob_suite = unittest.makeSuite(ClosedBlobTests, "Check")
-    blob_context_manager_suite = unittest.makeSuite(BlobContextManagerTests, "Check")
-    return unittest.TestSuite((
-        module_suite, connection_suite, cursor_suite, thread_suite,
-        constructor_suite, ext_suite, closed_con_suite, closed_cur_suite,
-        columntypes_suite, on_conflict_suite, blob_suite, closed_blob_suite,
-        blob_context_manager_suite,
-    ))
+    loader = unittest.TestLoader()
+    tests = [loader.loadTestsFromTestCase(t) for t in (
+        ModuleTests,
+        ConnectionTests,
+        CursorTests,
+        ThreadTests,
+        ConstructorTests,
+        ExtensionTests,
+        ClosedConTests,
+        ClosedCurTests,
+        SqliteColumnTypeTests,
+        SqliteOnConflictTests,
+        BlobTests,
+        ClosedBlobTests,
+        BlobContextManagerTests)]
+    return unittest.TestSuite(tests)
 
 def test():
     runner = unittest.TextTestRunner()

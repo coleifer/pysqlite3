@@ -156,7 +156,14 @@ class BackupTests(unittest.TestCase):
 
 
 def suite():
-    return unittest.makeSuite(BackupTests)
+    loader = unittest.TestLoader()
+    tests = [loader.loadTestsFromTestCase(t) for t in (
+        BackupTests,)]
+    return unittest.TestSuite(tests)
+
+def test():
+    runner = unittest.TextTestRunner()
+    runner.run(suite())
 
 if __name__ == "__main__":
-    unittest.main()
+    test()
