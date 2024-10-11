@@ -27,6 +27,9 @@ PY311="/opt/python/cp311-cp311/bin"
 PY312="/opt/python/cp312-cp312/bin"
 "${PY312}/python" setup.py build_static
 
+PY313="/opt/python/cp313-cp313/bin"
+"${PY313}/python" setup.py build_static
+
 sed -i "s|name=PACKAGE_NAME|name='pysqlite3-binary'|g" setup.py
 
 "${PY36}/pip" wheel /io/pysqlite3 -w /io/wheelhouse
@@ -36,6 +39,7 @@ sed -i "s|name=PACKAGE_NAME|name='pysqlite3-binary'|g" setup.py
 "${PY310}/pip" wheel /io/pysqlite3 -w /io/wheelhouse
 "${PY311}/pip" wheel /io/pysqlite3 -w /io/wheelhouse
 "${PY312}/pip" wheel /io/pysqlite3 -w /io/wheelhouse
+"${PY313}/pip" wheel /io/pysqlite3 -w /io/wheelhouse
 
 for whl in /io/wheelhouse/*.whl; do
   auditwheel repair "$whl" -w /io/wheelhouse/
