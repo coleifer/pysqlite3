@@ -28,6 +28,7 @@ PY312="/opt/python/cp312-cp312/bin"
 "${PY312}/python" setup.py build_static
 
 PY313="/opt/python/cp313-cp313/bin"
+"${PY313}/pip" install setuptools
 "${PY313}/python" setup.py build_static
 
 sed -i "s|name=PACKAGE_NAME|name='pysqlite3-binary'|g" setup.py
