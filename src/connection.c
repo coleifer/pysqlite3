@@ -203,6 +203,7 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     self->function_pinboard_trace_callback = NULL;
     self->function_pinboard_progress_handler = NULL;
     self->function_pinboard_authorizer_cb = NULL;
+    self->function_pinboard_busy_handler_cb = NULL;
 
     Py_XSETREF(self->collations, PyDict_New());
     if (!self->collations) {
@@ -267,6 +268,7 @@ void pysqlite_connection_dealloc(pysqlite_Connection* self)
     Py_XDECREF(self->function_pinboard_trace_callback);
     Py_XDECREF(self->function_pinboard_progress_handler);
     Py_XDECREF(self->function_pinboard_authorizer_cb);
+    Py_XDECREF(self->function_pinboard_busy_handler_cb);
     Py_XDECREF(self->row_factory);
     Py_XDECREF(self->text_factory);
     Py_XDECREF(self->collations);
@@ -1206,6 +1208,36 @@ static int _progress_handler(void* user_arg)
     return rc;
 }
 
+static int _busy_handler(void* user_arg, int n)
+{
+    int rc;
+    PyObject *ret;
+    PyGILState_STATE gilstate;
+
+    gilstate = PyGILState_Ensure();
+    ret = PyObject_CallFunction((PyObject*)user_arg, "i", n);
+
+    if (ret == NULL) {
+        if (_pysqlite_enable_callback_tracebacks)
+            PyErr_Print();
+        else
+            PyErr_Clear();
+
+        rc = 0;
+    }
+    else {
+        if (PyLong_Check(ret))
+            rc = PyLong_AsInt(ret);
+        else
+            rc = 0;
+
+        Py_DECREF(ret);
+    }
+
+    PyGILState_Release(gilstate);
+    return rc;
+}
+
 #ifdef HAVE_TRACE_V2
 static int _trace_callback(unsigned int type, void *ctx, void *stmt, void *sql)
 {
@@ -1337,6 +1369,68 @@ static PyObject* pysqlite_connection_set_progress_handler(pysqlite_Connection* s
         sqlite3_progress_handler(self->db, n, _progress_handler, progress_handler);
         Py_INCREF(progress_handler);
         Py_XSETREF(self->function_pinboard_progress_handler, progress_handler);
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject* pysqlite_connection_set_busy_handler(pysqlite_Connection* self, PyObject* args, PyObject* kwargs)
+{
+    PyObject* busy_handler;
+
+    static char *kwlist[] = { "busy_handler", NULL };
+
+    if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
+        return NULL;
+    }
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O:set_busy_handler",
+                                      kwlist, &busy_handler)) {
+        return NULL;
+    }
+
+    int rc;
+    if (busy_handler == Py_None) {
+        rc = sqlite3_busy_handler(self->db, NULL, NULL);
+        Py_XSETREF(self->function_pinboard_busy_handler_cb, NULL);
+    }
+    else {
+        Py_INCREF(busy_handler);
+        Py_XSETREF(self->function_pinboard_busy_handler_cb, busy_handler);
+        rc = sqlite3_busy_handler(self->db, _busy_handler, (void*)busy_handler);
+    }
+
+    if (rc != SQLITE_OK) {
+        PyErr_SetString(pysqlite_OperationalError, "Error setting busy handler");
+        Py_XSETREF(self->function_pinboard_busy_handler_cb, NULL);
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject* pysqlite_connection_set_busy_timeout(pysqlite_Connection* self, PyObject* args, PyObject* kwargs)
+{
+    int busy_timeout;
+
+    static char *kwlist[] = { "timeout", NULL };
+
+    if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
+        return NULL;
+    }
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i:set_busy_timeout",
+                                      kwlist, &busy_timeout)) {
+        return NULL;
+    }
+
+    int rc;
+    rc = sqlite3_busy_timeout(self->db, busy_timeout * 1000);
+    if (rc != SQLITE_OK) {
+        PyErr_SetString(pysqlite_OperationalError, "Error setting busy timeout");
+        return NULL;
+    }
+    else {
+        Py_XDECREF(self->function_pinboard_busy_handler_cb);
     }
 
     Py_RETURN_NONE;
@@ -2018,6 +2112,10 @@ static PyMethodDef connection_methods[] = {
     #endif
     {"set_authorizer", (PyCFunction)(void(*)(void))pysqlite_connection_set_authorizer, METH_VARARGS|METH_KEYWORDS,
         PyDoc_STR("Sets authorizer callback. Non-standard.")},
+    {"set_busy_handler", (PyCFunction)(void(*)(void))pysqlite_connection_set_busy_handler, METH_VARARGS|METH_KEYWORDS,
+        PyDoc_STR("Sets busy handler. Non-standard.")},
+    {"set_busy_timeout", (PyCFunction)(void(*)(void))pysqlite_connection_set_busy_timeout, METH_VARARGS|METH_KEYWORDS,
+        PyDoc_STR("Sets busy timeout. Non-standard.")},
     #ifdef HAVE_LOAD_EXTENSION
     {"enable_load_extension", (PyCFunction)pysqlite_enable_load_extension, METH_VARARGS,
         PyDoc_STR("Enable dynamic loading of SQLite extension modules. Non-standard.")},

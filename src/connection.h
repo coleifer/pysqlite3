@@ -90,6 +90,7 @@ typedef struct
     PyObject* function_pinboard_trace_callback;
     PyObject* function_pinboard_progress_handler;
     PyObject* function_pinboard_authorizer_cb;
+    PyObject* function_pinboard_busy_handler_cb;
 
     /* a dictionary of registered collation name => collation callable mappings */
     PyObject* collations;
