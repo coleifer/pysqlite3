@@ -23,6 +23,7 @@
 
 import os
 import unittest
+
 from pysqlite3 import dbapi2 as sqlite
 
 
@@ -277,12 +278,48 @@ class TraceCallbackTests(unittest.TestCase):
         self.assertEqual(traced_statements, queries)
 
 
+class TestBusyHandlerTimeout(unittest.TestCase):
+    def test_busy_handler(self):
+        accum = []
+        def custom_handler(n):
+            accum.append(n)
+            return 0 if n == 3 else 1
+
+        self.addCleanup(os.unlink, 'busy.db')
+        conn1 = sqlite.connect('busy.db')
+        conn2 = sqlite.connect('busy.db')
+        conn2.set_busy_handler(custom_handler)
+
+        conn1.execute('begin exclusive')
+        with self.assertRaises(sqlite.OperationalError):
+            conn2.execute('create table test(id)')
+        self.assertEqual(accum, [0, 1, 2, 3])
+        accum.clear()
+
+        conn2.set_busy_handler(None)
+        with self.assertRaises(sqlite.OperationalError):
+            conn2.execute('create table test(id)')
+        self.assertEqual(accum, [])
+
+        conn2.set_busy_handler(custom_handler)
+        with self.assertRaises(sqlite.OperationalError):
+            conn2.execute('create table test(id)')
+        self.assertEqual(accum, [0, 1, 2, 3])
+        accum.clear()
+
+        conn2.set_busy_timeout(0.01)  # Clears busy handler.
+        with self.assertRaises(sqlite.OperationalError):
+            conn2.execute('create table test(id)')
+        self.assertEqual(accum, [])
+
+
 def suite():
     loader = unittest.TestLoader()
     tests = [loader.loadTestsFromTestCase(t) for t in (
         CollationTests,
         ProgressTests,
-        TraceCallbackTests)]
+        TraceCallbackTests,
+        TestBusyHandlerTimeout)]
     return unittest.TestSuite(tests)
 
 def test():

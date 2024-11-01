@@ -1410,7 +1410,7 @@ static PyObject* pysqlite_connection_set_busy_handler(pysqlite_Connection* self,
 
 static PyObject* pysqlite_connection_set_busy_timeout(pysqlite_Connection* self, PyObject* args, PyObject* kwargs)
 {
-    int busy_timeout;
+    double busy_timeout;
 
     static char *kwlist[] = { "timeout", NULL };
 
@@ -1418,13 +1418,13 @@ static PyObject* pysqlite_connection_set_busy_timeout(pysqlite_Connection* self,
         return NULL;
     }
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i:set_busy_timeout",
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "d:set_busy_timeout",
                                       kwlist, &busy_timeout)) {
         return NULL;
     }
 
     int rc;
-    rc = sqlite3_busy_timeout(self->db, busy_timeout * 1000);
+    rc = sqlite3_busy_timeout(self->db, (int)busy_timeout * 1000);
     if (rc != SQLITE_OK) {
         PyErr_SetString(pysqlite_OperationalError, "Error setting busy timeout");
         return NULL;
