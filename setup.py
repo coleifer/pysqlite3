@@ -34,7 +34,7 @@ if sys.platform == "darwin":
 
 
 def quote_argument(arg):
-    q = '\\"' if sys.platform == 'win32' and sys.version_info < (3, 9) else '"'
+    q = '\\"' if sys.platform == 'win32' and sys.version_info < (3, 7) else '"'
     return q + arg + q
 
 define_macros = [('MODULE_NAME', quote_argument(PACKAGE_NAME + '.dbapi2'))]
@@ -72,14 +72,14 @@ class AmalgationLibSqliteBuilder(build_ext):
 
         header_exists = os.path.exists(self.amalgamation_header)
         source_exists = os.path.exists(self.amalgamation_source)
-        if not header_exists or not source_exists:
-            raise RuntimeError(self.amalgamation_message)
+        return header_exists and source_exists
 
     def build_extension(self, ext):
         log.info(self.description)
 
         # it is responsibility of user to provide amalgamation
-        self.check_amalgamation()
+        if not self.check_amalgamation():
+            raise RuntimeError(self.amalgamation_message)
 
         # Feature-ful library.
         features = (
@@ -128,6 +128,9 @@ class AmalgationLibSqliteBuilder(build_ext):
 
 class FullBuilder(AmalgationLibSqliteBuilder):
     def build_extension(self, ext):
+        if self.check_amalgamation():
+            return super(FullBuilder, self).build_extension(ext)
+
         from urllib.request import urlopen
         import zipfile
         try:
@@ -156,7 +159,7 @@ class FullBuilder(AmalgationLibSqliteBuilder):
                             open(os.path.join(self.amalgamation_root, filename), 'wb') as dest:
                         shutil.copyfileobj(src, dest)
 
-        super(FullBuilder, self).build_extension(ext)
+        return super(FullBuilder, self).build_extension(ext)
 
 
 def get_setup_args():
@@ -189,9 +192,9 @@ def get_setup_args():
             "Topic :: Database :: Database Engines/Servers",
             "Topic :: Software Development :: Libraries :: Python Modules"],
         cmdclass={
+            "build_dynamic": SystemLibSqliteBuilder,
+            "build_ext": FullBuilder,
             "build_static": AmalgationLibSqliteBuilder,
-            "build_ext": SystemLibSqliteBuilder,
-            "build_full": FullBuilder,
         }
     )
 
