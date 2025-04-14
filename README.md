@@ -40,6 +40,16 @@ $ python setup.py build
 Building a statically-linked library
 ------------------------------------
 
+To build a completely self-contained `pysqlite3`, you can use:
+
+```
+$ python setup.py build_full
+```
+
+This will download the latest Sqlite release amalgamation, extract the
+appropriate `sqlite3.c` and `sqlite3.h` files into the project directory, and
+compile a self-contained extension.
+
 To build `pysqlite3` statically-linked against a particular version of SQLite,
 you need to obtain the SQLite3 source code and copy `sqlite3.c` and `sqlite3.h`
 into the source tree.

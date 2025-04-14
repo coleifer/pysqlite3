@@ -140,7 +140,7 @@ class FullBuilder(AmalgationLibSqliteBuilder):
         if match is None:
             raise RuntimeError('Could not find Sqlite amalgamation on download page.')
         link, version = match.groups()
-        url = 'https://sqlite.org%s' % link
+        url = 'https://sqlite.org/%s' % link
         with tempfile.NamedTemporaryFile(suffix='.zip') as tmp:
             print('Downloading sqlite source code: %s' % url)
             with urlopen(url) as fh:
@@ -154,7 +154,7 @@ class FullBuilder(AmalgationLibSqliteBuilder):
 
                     with zf.open(path) as src, \
                             open(os.path.join(self.amalgamation_root, filename), 'wb') as dest:
-                        shutil.copyfileobj(src, dest):
+                        shutil.copyfileobj(src, dest)
 
         super(FullBuilder, self).build_extension(ext)
 
