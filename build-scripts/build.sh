@@ -7,7 +7,7 @@ if [[ ! -d "sqlite" ]]; then
   wget https://www.sqlite.org/src/tarball/sqlite.tar.gz?r=release -O sqlite.tar.gz
   tar xzf sqlite.tar.gz
   cd sqlite/
-  LIBS="-lm" ./configure --disable-tcl --enable-tempstore=always
+  LIBS="-lm" ./configure --disable-tcl --fts3 --fts4 --fts5
   make sqlite3.c
   cd ../
   rm sqlite.tar.gz
