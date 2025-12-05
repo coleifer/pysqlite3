@@ -167,7 +167,7 @@ def get_setup_args():
         long_description='',
         author="Charles Leifer",
         author_email="coleifer@gmail.com",
-        license="zlib/libpng",
+        license="MIT License",
         platforms="ALL",
         url="https://github.com/coleifer/pysqlite3",
         package_dir={PACKAGE_NAME: "pysqlite3"},
@@ -180,7 +180,7 @@ def get_setup_args():
         classifiers=[
             "Development Status :: 4 - Beta",
             "Intended Audience :: Developers",
-            "License :: OSI Approved :: zlib/libpng License",
+            'License :: OSI Approved :: MIT License',
             "Operating System :: MacOS :: MacOS X",
             "Operating System :: Microsoft :: Windows",
             "Operating System :: POSIX",
