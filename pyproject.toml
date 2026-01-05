@@ -1,0 +1,29 @@
+[build-system]
+requires = [
+    "setuptools>=69",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pysqlite3"
+version = "0.6.0"
+description = "DB-API 2.0 interface for Sqlite 3.x"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [
+    { name = "Charles Leifer", email = "coleifer@gmail.com" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C",
+    "Topic :: Database :: Database Engines/Servers"
+]
+
+[tool.setuptools]
+package-dir = { "pysqlite3" = "pysqlite3" }
+
+[tool.cibuildwheel]
+build = "cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
+skip = "pp* *-musllinux_i686"
