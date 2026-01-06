@@ -18,8 +18,14 @@ authors = [
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: C",
-    "Topic :: Database :: Database Engines/Servers"
+    "Topic :: Database",
+    "Topic :: Database :: Front-Ends",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+
+[project.urls]
+Repository = "https://github.com/coleifer/pysqlite3"
 
 [tool.setuptools]
 package-dir = { "pysqlite3" = "pysqlite3" }
