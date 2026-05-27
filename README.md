@@ -1,6 +1,10 @@
 pysqlite3
 =========
 
+**Note:** moving forward, [cysqlite](https://github.com/coleifer/cysqlite) ([docs](https://cysqlite.readthedocs.io/))
+is where all new development is happening for packaging a SQLite driver as a
+self-contained package. **End note**
+
 This library takes the SQLite module from Python 3 and packages it as a
 separately-installable module.
 
