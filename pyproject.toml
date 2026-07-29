@@ -6,15 +6,29 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pysqlite3"
-version = "0.6.0"
-description = "DB-API 2.0 interface for Sqlite 3.x"
+# Unofficial fork of coleifer/pysqlite3. The distribution is renamed so pip can
+# never confuse it with the upstream `pysqlite3` on PyPI, but the *import* name
+# stays `pysqlite3` so it remains a drop-in replacement for `sqlite3`.
+name = "pysqlite3-yliu"
+# <upstream version>+sqlite.<statically linked SQLite version>. The local
+# segment is informational and also makes the version unpublishable on PyPI.
+version = "0.6.0+sqlite.3.53.4"
+description = "DB-API 2.0 interface for SQLite 3.x, statically linked against a pinned SQLite"
 readme = "README.md"
-requires-python = ">=3.9"
+# Matches the wheels actually built (see [tool.cibuildwheel] below). Declaring a
+# wider range would let pip fall back to a source build against whatever
+# libsqlite3 the host happens to have, silently defeating the point of the fork.
+requires-python = ">=3.12"
 authors = [
     { name = "Charles Leifer", email = "coleifer@gmail.com" }
 ]
+maintainers = [
+    { name = "Yiming Liu" }
+]
 classifiers = [
+    # PyPI rejects any distribution carrying a `Private ::` classifier, so this
+    # is a hard stop against an accidental upload.
+    "Private :: Do Not Upload",
     "Programming Language :: Python :: 3",
     "Programming Language :: C",
     "Topic :: Database",
@@ -24,11 +38,31 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/coleifer/pysqlite3"
+Repository = "https://github.com/yimingliu/pysqlite3"
+Upstream = "https://github.com/coleifer/pysqlite3"
 
 [tool.setuptools]
 package-dir = { "pysqlite3" = "pysqlite3" }
 
 [tool.cibuildwheel]
-build = "cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
-skip = "pp* *-musllinux_i686"
+# 3.12 is what production runs today; 3.13/3.14 are headroom for the upgrade.
+build = "cp312-* cp313-* cp314-*"
+# No PyPy (this is a CPython C extension), and no musl (production is Ubuntu).
+skip = "pp* *-musllinux_*"
+# "native" is the host architecture and nothing else, so every wheel is built
+# and tested on hardware of its own architecture -- each runner in the matrix
+# contributes its own arch. Deliberately not "auto" or "universal2": those
+# cross-compile, and cibuildwheel can only skip the tests for a foreign arch.
+archs = ["native"]
+build-verbosity = 1
+# Run the full suite against each built wheel. `test-sources` copies tests/ into
+# the test directory so the checkout's own pysqlite3/ package cannot shadow the
+# installed wheel -- without this the tests would exercise the source tree.
+test-sources = ["tests"]
+test-command = "python -m tests"
+
+[tool.cibuildwheel.linux]
+# Pinned, not inherited: cibuildwheel's default has moved before, and the glibc
+# floor is the one thing that decides whether production can install the wheel
+# at all. 2.28 is comfortably below production's 2.35.
+manylinux-x86_64-image = "manylinux_2_28"

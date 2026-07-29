@@ -1,24 +1,83 @@
 name: Tests
-on: [push]
+
+on:
+  push:
+    # Tag pushes are the release path and are handled by wheels.yaml, which
+    # builds and tests the same static configuration. Without this, a tag runs
+    # both workflows and builds every wheel twice.
+    tags-ignore:
+      - "**"
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - "TODO"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Only the newest push on a branch needs to be tested.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  tests:
-    name: ${{ matrix.python-version }}
+  # The configuration this fork actually ships: statically linked against the
+  # pinned amalgamation. Runs on every push, on 1x Linux runners.
+  static:
+    name: static sqlite / ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.8, 3.9, "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: package deps
+
+      - name: Fetch pinned SQLite amalgamation
+        run: python build-scripts/fetch_source.py
+
+      - name: Build and install wheel
         run: |
-          sudo apt-get install libsqlite3-dev
-          pip install setuptools
+          python -m pip install -U pip
+          python -m pip wheel . --no-deps -w wheelhouse
+          python -m pip install wheelhouse/*.whl
+
+      # From a scratch directory, so the checkout's pysqlite3/ package cannot
+      # shadow the installed wheel and make this test a no-op.
+      - name: Run tests against the installed wheel
+        run: |
+          mkdir -p "$RUNNER_TEMP/wheeltest"
+          cp -R tests "$RUNNER_TEMP/wheeltest/"
+          cd "$RUNNER_TEMP/wheeltest"
+          python -m tests
+          python "$GITHUB_WORKSPACE/build-scripts/verify_wheel.py"
+
+  # The `pip install --no-binary` / sdist path, which links whatever libsqlite3
+  # the host provides. Kept so that code path does not rot; one version is
+  # enough, since it exercises the same C sources.
+  system:
+    name: system sqlite / 3.12
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build against system libsqlite3
+        run: |
+          sudo apt-get install -y libsqlite3-dev
+          python -m pip install -U pip setuptools
           python setup.py build_ext -i
-      - name: runtests
+
+      - name: Run tests
         env:
-          PYTHONPATH: '.:$PYTHONPATH'
+          PYTHONPATH: "."
         run: python tests/

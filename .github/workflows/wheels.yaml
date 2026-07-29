@@ -1,12 +1,37 @@
 name: Build wheels
+
+# Wheels are published as GitHub Release assets, never to PyPI -- see the
+# `Private :: Do Not Upload` classifier in pyproject.toml.
 on:
   push:
+    # Both prefixes are accepted so a `v`-prefixed tag cannot silently trigger
+    # nothing. The tag carries the base version only -- 0.6.1, never
+    # 0.6.1+sqlite.3.53.4 -- and the check job enforces that it matches.
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
       - "[0-9]+.[0-9]+.[0-9]+-**"
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-**"
+  # Dry run: builds and tests the wheels, uploads them as workflow artifacts,
+  # and creates no release.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A re-pushed tag or a second dispatch cancels the run it supersedes rather than
+# building both. macOS runners bill at 10x on private repos, so this matters
+# more than it looks.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  sdist:
+  # Fails in ~15 seconds on a 1x runner rather than after the macOS build has
+  # already produced six wheels named after the wrong version. Deliberately has
+  # no `if:` -- a skipped job would skip everything that needs it.
+  check:
+    name: version consistency
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,25 +40,38 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install build tools
+      # Passed through the environment rather than interpolated into the script,
+      # so a tag name cannot inject shell.
+      - name: Check version, SQLite pin and tag agree
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          python -m pip install -U pip
-          pip install setuptools
-
-      - name: Build sdist
-        run: |
-          python setup.py sdist
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sdist
-          path: dist/pysqlite3*.tar.gz
+          if [ "$REF_TYPE" = "tag" ]; then
+            python build-scripts/check_version.py "$REF_NAME"
+          else
+            # A dispatch run has no tag; check the version against the pin only.
+            python build-scripts/check_version.py
+          fi
 
   wheels:
+    name: ${{ matrix.os }}
+    needs: check
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # All three are *standard* runners, so they are free on this public
+        # repo. One leg per architecture, each building natively: `archs =
+        # ["native"]` in pyproject.toml means a runner only ever produces
+        # wheels for its own architecture, so the test suite always runs on the
+        # wheel it just built. Cross-compiling both macOS slices from one
+        # runner works, but cibuildwheel would have to skip the foreign arch's
+        # tests -- untested wheels are the thing this matrix exists to avoid.
+        os:
+          - ubuntu-latest    # x86_64 -> manylinux_2_28_x86_64
+          - macos-15-intel   # x86_64 -> macosx_x86_64
+          - macos-latest     # arm64  -> macosx_arm64 (11.0 minimum)
 
     steps:
       - uses: actions/checkout@v4
@@ -47,38 +85,62 @@ jobs:
           python -m pip install -U pip
           pip install cibuildwheel
 
-      - name: Download sqlite sources
-        run: |
-          python build-scripts/fetch_source.py
+      # Must precede cibuildwheel: setup.py links the system libsqlite3 if
+      # sqlite3.c is absent, and does so silently.
+      - name: Fetch pinned SQLite amalgamation
+        run: python build-scripts/fetch_source.py
 
-      - name: Build wheels
-        run: |
-          python -m cibuildwheel --output-dir wheelhouse
-        env:
-          CIBW_BUILD_VERBOSITY: 1
+      # Builds, then runs tests/ and build-scripts/verify_wheel.py inside each
+      # wheel's own environment (see [tool.cibuildwheel] in pyproject.toml).
+      - name: Build and test wheels
+        run: python -m cibuildwheel --output-dir wheelhouse
+
+      - name: Summarize
+        run: ls -l wheelhouse/
 
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}
           path: wheelhouse/*.whl
+          if-no-files-found: error
 
-  publish:
-    needs: [sdist, wheels]
+  release:
+    needs: wheels
+    # Dispatch runs stop at the artifact upload.
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           pattern: wheels-*
           path: dist
           merge-multiple: true
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: sdist
-          path: dist
-          merge-multiple: true
-
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          ls -l dist/
+          SQLITE_VERSION=$(python3 -c \
+            "import sys; sys.path.insert(0, 'build-scripts'); \
+             import fetch_source; print(fetch_source.SQLITE_VERSION)")
+          {
+            echo "Statically linked against **SQLite ${SQLITE_VERSION}**."
+            echo
+            echo 'Unofficial fork of [pysqlite3](https://github.com/coleifer/pysqlite3).'
+            echo 'Not on PyPI. Install from this release:'
+            echo
+            echo '```'
+            echo "pip install pysqlite3-yliu --find-links \\"
+            echo "  https://github.com/${GH_REPO}/releases/expanded_assets/${TAG}"
+            echo '```'
+          } > notes.md
+          gh release create "$TAG" dist/*.whl --title "$TAG" --notes-file notes.md

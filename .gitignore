@@ -1,0 +1,13 @@
+# Downloaded by build-scripts/fetch_source.py; the pin in that script is the
+# source of truth, not a vendored copy of the amalgamation.
+/sqlite3.c
+/sqlite3.h
+
+build/
+dist/
+wheelhouse/
+*.egg-info/
+*.so
+*.o
+*.pyc
+__pycache__/
