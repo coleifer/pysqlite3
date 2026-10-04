@@ -1004,7 +1004,9 @@ static void _pysqlite_drop_unused_cursor_references(pysqlite_Connection* self)
 
 static void _destructor(void* args)
 {
+    PyGILState_STATE gstate = PyGILState_Ensure();
     Py_DECREF((PyObject *)args);
+    PyGILState_Release(gstate);
 }
 
 

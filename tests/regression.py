@@ -1,7 +1,6 @@
-#-*- coding: iso-8859-1 -*-
 # pysqlite2/test/regression.py: pysqlite regression tests
 #
-# Copyright (C) 2006-2010 Gerhard Häring <gh@ghaering.de>
+# Copyright (C) 2006-2010 Gerhard HÃ¤ring <gh@ghaering.de>
 #
 # This file is part of pysqlite.
 #
@@ -397,6 +396,32 @@ class RegressionTests(unittest.TestCase):
             method(printer_instance.log)  # Register twice, incref twice.
             self.con.execute('select 1')  # Triggers segfault.
             method(None)
+
+    def test_UdfDestructorWithoutGil(self):
+        # https://github.com/coleifer/sqlcipher3/issues/33
+        # A cursor that executes a statement already in use by another cursor
+        # gets a fresh statement that close() does not know about. Closing the
+        # connection then leaves a zombie db that is really closed when that
+        # statement is finalized in its dealloc, with the GIL released. SQLite
+        # calls the UDF destructor from there, so it must re-acquire the GIL
+        # before dropping the last reference to the callable.
+        con = sqlite.connect(":memory:")
+        def func(a, b):
+            return True
+        con.create_function("func", 2, func)
+        con.execute("create table test(x)")
+        con.executemany("insert into test values (?)", [(i,) for i in range(3)])
+        sql = "select x from test where func(1, 2)"
+        cur1 = con.cursor()
+        cur1.execute(sql)
+        cur1.fetchone()
+        cur2 = con.cursor()
+        cur2.execute(sql)
+        cur2.fetchone()
+        con.close()
+        del func
+        # The interpreter shouldn't crash when cur2 is collected.
+        del cur2
 
 
 def suite():
