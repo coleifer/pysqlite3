@@ -1,6 +1,3 @@
-# -*- coding: ISO-8859-1 -*-
-# setup.py: the distutils script
-#
 import os
 
 from setuptools import Extension

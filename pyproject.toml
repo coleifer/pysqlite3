@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pysqlite3"
-version = "0.6.0"
+version = "0.6.1"
 description = "DB-API 2.0 interface for Sqlite 3.x"
 readme = "README.md"
 requires-python = ">=3.9"
