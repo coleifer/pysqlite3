@@ -30,5 +30,5 @@ Repository = "https://github.com/coleifer/pysqlite3"
 package-dir = { "pysqlite3" = "pysqlite3" }
 
 [tool.cibuildwheel]
-build = "cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
+build = "cp39-* cp310-* cp311-* cp312-* cp313-* cp314-* cp315-*"
 skip = "pp* *-musllinux_i686"
